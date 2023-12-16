@@ -2,7 +2,7 @@
   "name": "pulsar-find-references",
   "main": "./dist/main",
   "version": "0.0.2",
-  "description": "A short description of your package",
+  "description": "An IDE UI package for highlighting references to the token under the cursor",
   "keywords": [],
   "scripts": {
     "build": "tsc",
@@ -24,8 +24,20 @@
     }
   },
   "configSchema": {
-    "scrollbarDecoration": {
+    "general": {
       "order": 1,
+      "type": "object",
+      "title": "General",
+      "properties": {
+        "delay": {
+          "type": "number",
+          "default": 200,
+          "description": "Time, in milliseconds, to wait after the cursor moves before attempting to highlight similar tokens."
+        }
+      }
+    },
+    "scrollbarDecoration": {
+      "order": 2,
       "type": "object",
       "title": "Scrollbar Decoration",
       "properties": {
@@ -52,7 +64,7 @@
       }
     },
     "advanced": {
-      "order": 2,
+      "order": 3,
       "type": "object",
       "title": "Advanced",
       "properties": {

@@ -13,6 +13,7 @@ export default class FindReferencesManager {
     private markerLayersForEditors;
     private scrollGuttersForEditors;
     private showMatchesBehindScrollbar;
+    private cursorMoveDelay;
     private cursorMoveTimer?;
     constructor();
     initialize(pendingProviders: FindReferencesProvider[]): void;

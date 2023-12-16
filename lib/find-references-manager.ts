@@ -32,6 +32,7 @@ export default class FindReferencesManager {
 
   private showMatchesBehindScrollbar: boolean = true;
 
+  private cursorMoveDelay: number = 200;
   private cursorMoveTimer?: NodeJS.Timeout | number;
 
   constructor() {
@@ -57,9 +58,15 @@ export default class FindReferencesManager {
       }),
       atom.config.observe(
         'pulsar-find-references.scrollbarDecoration.enable',
-        (value) => {
+        (value: boolean) => {
           this.showMatchesBehindScrollbar = value;
           console.log('showMatchesBehindScrollbar is now', value);
+        }
+      ),
+      atom.config.observe(
+        'pulsar-find-references.general.delay',
+        (value: number) => {
+          this.cursorMoveDelay = value;
         }
       )
     );
@@ -76,9 +83,7 @@ export default class FindReferencesManager {
   // EDITOR MANAGEMENT
 
   watchEditor(editor: TextEditor) {
-    console.log('watchEditor:', editor);
     if (this.watchedEditors.has(editor)) {
-      console.warn('Already has!', editor);
       return;
     }
 
@@ -110,7 +115,6 @@ export default class FindReferencesManager {
   }
 
   updateCurrentEditor(editor: TextEditor | null) {
-    console.log('updateCurrentEditor:', editor);
     if (editor === this.editor) return;
 
     this.editorSubscriptions?.dispose();
@@ -148,11 +152,10 @@ export default class FindReferencesManager {
     }
 
     this.cursorMoveTimer = setTimeout(
-      async (_event: CursorPositionChangedEvent) => {
+      async () => {
         await this.requestReferencesUnderCursor();
       },
-      100,
-      event ?? ''
+      this.cursorMoveDelay
     );
   }
 
@@ -193,10 +196,12 @@ export default class FindReferencesManager {
 
   async findReferencesForVisibleEditors(mainEditor: TextEditor) {
     let visibleEditors = this.getVisibleEditors();
-    console.log('visibleEditors:', visibleEditors);
+
     let editorMap = new Map();
     let referenceMap = new Map();
+
     for (let editor of visibleEditors) {
+      // More than one visible editor can be pointing to the same path.
       let path = editor.getPath();
       if (!editorMap.has(path)) {
         editorMap.set(path, []);
@@ -235,7 +240,6 @@ export default class FindReferencesManager {
         this.highlightReferences(editor, references ?? []);
       }
     }
-
   }
 
   async findReferences(event: CommandEvent<TextEditorElement>) {
