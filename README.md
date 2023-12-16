@@ -1,5 +1,7 @@
-# pulsar-find-references package
+# pulsar-find-references
 
-A short description of your package.
+An IDE UI package for highlighting references to the token under the cursor.
 
-![A screenshot of your package](https://f.cloud.github.com/assets/69169/2290250/c35d867a-a017-11e3-86be-cd7c5bf3ff9b.gif)
+<img width="617" alt="pulsar-find-references" src="https://gist.github.com/assets/3450/4383f6bf-5c19-4fce-8326-403fdacd7784" style="margin-bottom: 2rem;">
+
+This package consumes the `find-references` service that is provided by many IDE backend packages. Here’s [a list of packages that provide the `find-references` service.](https://web.pulsar-edit.dev/packages?service=find-references&serviceType=provided)
