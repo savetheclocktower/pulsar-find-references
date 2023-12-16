@@ -1,7 +1,7 @@
 {
   "name": "pulsar-find-references",
   "main": "./dist/main",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "An IDE UI package for highlighting references to the token under the cursor",
   "keywords": [],
   "scripts": {
