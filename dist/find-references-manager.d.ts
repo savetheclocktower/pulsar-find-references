@@ -12,7 +12,8 @@ export default class FindReferencesManager {
     private watchedEditors;
     private markerLayersForEditors;
     private scrollGuttersForEditors;
-    private showMatchesBehindScrollbar;
+    private enableScrollbarDecoration;
+    private enableEditorDecoration;
     private cursorMoveDelay;
     private cursorMoveTimer?;
     constructor();
@@ -21,14 +22,17 @@ export default class FindReferencesManager {
     dispose(): void;
     watchEditor(editor: TextEditor): Disposable | undefined;
     updateCurrentEditor(editor: TextEditor | null): void;
-    onCursorMove(event?: CursorPositionChangedEvent): void;
-    requestReferencesUnderCursor(): Promise<void>;
-    findReferencesForEditor(editor: TextEditor): Promise<void>;
-    findReferencesForVisibleEditors(mainEditor: TextEditor): Promise<void>;
+    onCursorMove(_event?: CursorPositionChangedEvent): void;
+    requestReferencesUnderCursor(force?: boolean): Promise<void>;
+    findReferencesForVisibleEditors(mainEditor: TextEditor, force?: boolean): Promise<void>;
     findReferences(event: CommandEvent<TextEditorElement>): Promise<void>;
-    highlightReferences(editor: TextEditor, references: Reference[]): void;
+    highlightReferences(editor: TextEditor, references: Reference[] | null, force?: boolean): void;
     getOrCreateMarkerLayerForEditor(editor: TextEditor): DisplayMarkerLayer;
     getOrCreateScrollGutterForEditor(editor: TextEditor): ScrollGutter;
+    /**
+     * Sets an attribute on `atom-text-editor` whenever a `scroll-gutter` element
+     * is present. This allows us to define custom scrollbar opacity styles.
+     */
     onScrollGutterVisibilityChange(event: ScrollGutterVisibilityEvent): void;
     clearAllVisibleScrollGutters(): void;
     updateScrollGutter(editor: TextEditor, references: Reference[] | null): void;

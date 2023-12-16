@@ -30,7 +30,8 @@ export default class FindReferencesManager {
   private markerLayersForEditors: WeakMap<TextEditor, DisplayMarkerLayer> = new WeakMap();
   private scrollGuttersForEditors: WeakMap<TextEditor, ScrollGutter> = new WeakMap();
 
-  private showMatchesBehindScrollbar: boolean = true;
+  private enableScrollbarDecoration: boolean = true;
+  private enableEditorDecoration: boolean = true;
 
   private cursorMoveDelay: number = 200;
   private cursorMoveTimer?: NodeJS.Timeout | number;
@@ -52,15 +53,22 @@ export default class FindReferencesManager {
         editor.onDidDestroy(() => disposable?.dispose());
       }),
       atom.commands.add('atom-text-editor', {
-        'pulsar-find-references': (event) => {
-          return this.findReferences(event);
+        'pulsar-find-references:show': (_event: CommandEvent) => {
+          return this.requestReferencesUnderCursor(true);
         }
       }),
       atom.config.observe(
         'pulsar-find-references.scrollbarDecoration.enable',
         (value: boolean) => {
-          this.showMatchesBehindScrollbar = value;
-          console.log('showMatchesBehindScrollbar is now', value);
+          this.enableScrollbarDecoration = value;
+          console.log('enableScrollbarDecoration is now', value);
+        }
+      ),
+      atom.config.observe(
+        'pulsar-find-references.editorDecoration.enable',
+        (value: boolean) => {
+          this.enableEditorDecoration = value;
+          console.log('enableEditorDecoration is now', value);
         }
       ),
       atom.config.observe(
@@ -140,7 +148,11 @@ export default class FindReferencesManager {
 
   // EVENT HANDLERS
 
-  onCursorMove(event?: CursorPositionChangedEvent) {
+  onCursorMove(_event?: CursorPositionChangedEvent) {
+    if (!this.enableEditorDecoration && !this.enableScrollbarDecoration) {
+      // There's no reason to proceed.
+      return;
+    }
     if (this.cursorMoveTimer !== undefined) {
       clearTimeout(this.cursorMoveTimer);
       this.cursorMoveTimer === undefined;
@@ -161,40 +173,15 @@ export default class FindReferencesManager {
 
   // FIND REFERENCES
 
-  async requestReferencesUnderCursor() {
+  async requestReferencesUnderCursor(force: boolean = false) {
     let editor = this.editor;
     if (!editor) return;
 
-    return this.findReferencesForVisibleEditors(editor);
+    return this.findReferencesForVisibleEditors(editor, force);
   }
 
-  async findReferencesForEditor(editor: TextEditor) {
-    let provider = this.providerRegistry.getFirstProviderForEditor(editor);
-
-    if (!provider) return;
-
-    let cursors = editor.getCursors();
-    if (cursors.length > 1) return;
-
-    let [cursor] = cursors;
-    let position = cursor.getBufferPosition();
-
-    let result = await provider.findReferences(editor, position);
-
-    console.log('result:', result);
-
-    if (!result || result.type === 'error') {
-      console.log('error!');
-      // TODO
-      this.clearAllVisibleScrollGutters();
-      // this.updateScrollGutter(editor, null);
-      return;
-    }
-
-    this.highlightReferences(editor, result.references);
-  }
-
-  async findReferencesForVisibleEditors(mainEditor: TextEditor) {
+  async findReferencesForVisibleEditors(mainEditor: TextEditor, force: boolean = false) {
+    console.log('findReferencesForVisibleEditors', mainEditor, force);
     let visibleEditors = this.getVisibleEditors();
 
     let editorMap = new Map();
@@ -225,6 +212,8 @@ export default class FindReferencesManager {
       return;
     }
 
+    console.warn('REFERENCES:', result.references);
+
     for (let reference of result.references) {
       let { uri } = reference;
       if (!referenceMap.has(uri)) {
@@ -237,7 +226,7 @@ export default class FindReferencesManager {
       let editors = editorMap.get(path);
       let references = referenceMap.get(path);
       for (let editor of editors) {
-        this.highlightReferences(editor, references ?? []);
+        this.highlightReferences(editor, references ?? [], force);
       }
     }
   }
@@ -250,25 +239,26 @@ export default class FindReferencesManager {
     return this.findReferencesForVisibleEditors(editor);
   }
 
-  highlightReferences(editor: TextEditor, references: Reference[]) {
+  highlightReferences(editor: TextEditor, references: Reference[] | null, force: boolean = false) {
+    console.log('highlightReferences', editor, references, force);
     let editorMarkerLayer = this.getOrCreateMarkerLayerForEditor(editor);
     editorMarkerLayer.clear();
-    let currentPath = editor.getPath();
-    for (let reference of references) {
-      let { range, uri } = reference;
-      if (uri !== currentPath) continue;
-      editorMarkerLayer.markBufferRange(range);
+
+    if (this.enableEditorDecoration || force) {
+      let currentPath = editor.getPath();
+      for (let reference of (references ?? [])) {
+        let { range, uri } = reference;
+        if (uri !== currentPath) continue;
+        editorMarkerLayer.markBufferRange(range);
+      }
+
+      editor.decorateMarkerLayer(editorMarkerLayer, {
+        type: 'highlight',
+        class: 'pulsar-find-references-reference'
+      });
     }
 
-    editor.decorateMarkerLayer(editorMarkerLayer, {
-      type: 'highlight',
-      class: 'pulsar-find-references-reference'
-    });
-
-    if (this.showMatchesBehindScrollbar) {
-      console.log('showing matches behind scrollbar!');
-      this.updateScrollGutter(editor, references);
-    }
+    this.updateScrollGutter(editor, references);
   }
 
   getOrCreateMarkerLayerForEditor(editor: TextEditor) {
@@ -290,26 +280,30 @@ export default class FindReferencesManager {
       this.scrollGuttersForEditors.set(editor, element);
 
       let onVisibilityChange = (event: Event) => {
-        console.warn('onVisibilityChange received!');
         return this.onScrollGutterVisibilityChange(event as ScrollGutterVisibilityEvent);
       };
-      console.warn('LISTENING for visibility-changed');
+
       editorView.addEventListener('visibility-changed', onVisibilityChange);
+
       this.subscriptions.add(
         new Disposable(() => {
-          console.warn('UNLISTENING for visibility-changed');
           editorView.removeEventListener('visibility-changed', onVisibilityChange);
         })
       );
+
+      element.attachToEditor(editor);
     }
     return element;
   }
 
+  /**
+   * Sets an attribute on `atom-text-editor` whenever a `scroll-gutter` element
+   * is present. This allows us to define custom scrollbar opacity styles.
+   */
   onScrollGutterVisibilityChange(event: ScrollGutterVisibilityEvent) {
     let { detail: { visible, editor } } = event;
 
     let editorView = atom.views.getView(editor);
-    console.warn('visible?', visible, event.detail);
     editorView.setAttribute(
       'with-pulsar-find-references-scroll-gutter',
       visible ? 'active' : 'inactive'
@@ -324,11 +318,11 @@ export default class FindReferencesManager {
   }
 
   updateScrollGutter(editor: TextEditor, references: Reference[] | null) {
+    if (!this.enableScrollbarDecoration) return;
+
     let element = this.getOrCreateScrollGutterForEditor(editor);
     if (!element) return;
 
-    element.attachToEditor(editor);
-    console.log('ELEMENT references:', references);
     element.highlightReferences(references);
   }
 

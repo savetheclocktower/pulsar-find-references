@@ -36,8 +36,21 @@
         }
       }
     },
-    "scrollbarDecoration": {
+    "editorDecoration": {
       "order": 2,
+      "type": "object",
+      "title": "Editor Decoration",
+      "properties": {
+        "enable": {
+          "title": "Enable",
+          "description": "When checked, matching references will be highlighted in the editor itself. (The **Pulsar Find References: Show** command will always show references in the editor when invoked, even if this setting is disabled.)",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "scrollbarDecoration": {
+      "order": 3,
       "type": "object",
       "title": "Scrollbar Decoration",
       "properties": {
@@ -64,7 +77,7 @@
       }
     },
     "advanced": {
-      "order": 3,
+      "order": 4,
       "type": "object",
       "title": "Advanced",
       "properties": {
