@@ -13,7 +13,7 @@ This package consumes the `find-references` service that is provided by many IDE
 
 By default, this package will highlight references in your editor automatically whenever your cursor moves around. You can configure the amount of time it waits before trying to highlight references (`200ms` by default) or you can disable this behavior altogether and explicitly invoke **Pulsar Find References: Show** whenever you want to highlight references.
 
-By default, the color of the highlight is a mostly-transparent version of the color of a variable in your syntax theme. If you want to change this color, you can use your user stylesheet:
+By default, the color of the highlight is a mostly-transparent version of the color of a variable in your syntax theme. (This was the only practical option for a color that adapted to the color of your syntax theme.) If you want to change this color, you can use your user stylesheet:
 
 ```less
 .highlight.pulsar-find-references-reference {
