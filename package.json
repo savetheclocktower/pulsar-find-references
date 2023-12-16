@@ -1,0 +1,82 @@
+{
+  "name": "pulsar-find-references",
+  "main": "./dist/main",
+  "version": "0.0.0",
+  "description": "A short description of your package",
+  "keywords": [],
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "shx rm -rf dist",
+    "build-commit": "npm run clean && build-commit -o dist",
+    "prepublishOnly": "npm run build-commit"
+  },
+  "repository": "https://github.com/atom/pulsar-find-references",
+  "license": "MIT",
+  "engines": {
+    "atom": ">=1.0.0 <2.0.0"
+  },
+  "consumedServices": {
+    "find-references": {
+      "versions": {
+        "0.1.0": "consumeFindReferences"
+      }
+    }
+  },
+  "configSchema": {
+    "scrollbarDecoration": {
+      "order": 1,
+      "type": "object",
+      "title": "Scrollbar Decoration",
+      "properties": {
+        "enable": {
+          "title": "Enable",
+          "description": "When checked, matches in a given editor will be marked underneath the scrollbar.",
+          "type": "boolean",
+          "default": true
+        },
+        "markerColor": {
+          "title": "Marker Color",
+          "description": "The color to use for marking the gutter.",
+          "type": "color",
+          "default": "#FFFFFF"
+        },
+        "markerOpacity": {
+          "title": "Marker Opacity",
+          "description": "The desired opacity for scrollbar markers. Must be a number between `0` and `1`.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "advanced": {
+      "order": 2,
+      "type": "object",
+      "title": "Advanced",
+      "properties": {
+        "enableDebugLogging": {
+          "title": "Enable Debug Logging",
+          "description": "When checked, will log diagnostic information to the console.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/atom": "^1.40.17",
+    "@types/element-resize-detector": "^1.1.6",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "atom-ide-base": "^3.3.0",
+    "build-commit": "^0.1.4",
+    "shx": "^0.3.4",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "atom-utils-plus": "^0.11.0",
+    "element-resize-detector": "^1.2.4"
+  }
+}

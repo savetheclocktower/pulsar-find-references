@@ -1,0 +1,26 @@
+{
+  "context-menu": {
+    "atom-text-editor": [
+      {
+        "label": "Toggle pulsar-find-references",
+        "command": "pulsar-find-references:toggle"
+      }
+    ]
+  },
+  "menu": [
+    {
+      "label": "Packages",
+      "submenu": [
+        {
+          "label": "pulsar-find-references",
+          "submenu": [
+            {
+              "label": "Toggle",
+              "command": "pulsar-find-references:toggle"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

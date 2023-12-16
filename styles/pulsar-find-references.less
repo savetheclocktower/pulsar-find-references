@@ -1,0 +1,39 @@
+// The ui-variables file is provided by base themes provided by Atom.
+//
+// See https://github.com/atom/atom-dark-ui/blob/master/styles/ui-variables.less
+// for a full listing of what's available.
+@import "ui-variables";
+
+.pulsar-find-references {
+}
+
+// css containment to improve performance
+// this means the css properties of the minimap does not affect other parts of Atom
+// https://drafts.csswg.org/css-contain/#propdef-contain
+@contain-all: size layout paint style;
+@contain-except-size: layout paint style;
+
+atom-text-editor[with-pulsar-find-references-scroll-gutter="active"] {
+  .vertical-scrollbar {
+    opacity: 0.725;
+  }
+}
+
+pulsar-find-references-scroll-gutter {
+  position: fixed;
+  top: 0;
+  right: 0;
+  min-width: 16px;
+  contain: @contain-all;
+  display: block;
+  overflow: hidden;
+  -webkit-user-select: none;
+  cursor: default;
+
+  canvas {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+  }
+}
