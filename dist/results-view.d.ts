@@ -1,0 +1,30 @@
+import type { Reference } from 'atom-ide-base';
+import etch from 'etch';
+export default class ResultsView {
+    private subscriptions;
+    private results;
+    private ignoredNameMatchers;
+    private previewStyle;
+    constructor(results: Reference[]);
+    moveUp(): void;
+    moveDown(): void;
+    collapseResult(): void;
+    expandResult(): void;
+    pageUp(): void;
+    pageDown(): void;
+    moveToTop(): void;
+    moveToBottom(): void;
+    confirmResult(): void;
+    copyResult(): void;
+    copyPath(): void;
+    openInNewTab(): void;
+    update(): void;
+    destroy(): void;
+    getRowHeight(): void;
+    fontFamilyChanged(fontFamily: string): void;
+    ignoredNamesChanged(ignoredNames: string[]): void;
+    invalidateItemHeights(): void;
+    handleClick(): void;
+    filterAndGroupReferences(): Map<string, Reference[]>;
+    render(): etch.EtchJSXElement;
+}

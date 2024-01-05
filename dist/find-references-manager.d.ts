@@ -1,6 +1,6 @@
-import { DisplayMarkerLayer, Disposable, TextEditor, TextEditorElement, CommandEvent, CursorPositionChangedEvent } from 'atom';
+import { DisplayMarkerLayer, Disposable, Point, TextEditor, TextEditorElement, CommandEvent, CursorPositionChangedEvent } from 'atom';
 import type { FindReferencesProvider } from './find-references.d';
-import type { Reference } from 'atom-ide-base';
+import type { FindReferencesReturn, Reference } from 'atom-ide-base';
 import ProviderRegistry from './provider-registry';
 import { default as ScrollGutter, ScrollGutterVisibilityEvent } from './elements/scroll-gutter';
 export default class FindReferencesManager {
@@ -14,6 +14,7 @@ export default class FindReferencesManager {
     private scrollGuttersForEditors;
     private enableScrollbarDecoration;
     private enableEditorDecoration;
+    private splitDirection;
     private cursorMoveDelay;
     private cursorMoveTimer?;
     constructor();
@@ -23,10 +24,14 @@ export default class FindReferencesManager {
     watchEditor(editor: TextEditor): Disposable | undefined;
     updateCurrentEditor(editor: TextEditor | null): void;
     onCursorMove(_event?: CursorPositionChangedEvent): void;
+    requestReferencesForPanel(): Promise<void>;
+    showReferencesPane(references: FindReferencesReturn): Promise<object> | undefined;
+    getReferencesForProject(editor: TextEditor): Promise<FindReferencesReturn | null>;
     requestReferencesUnderCursor(force?: boolean): Promise<void>;
     findReferencesForVisibleEditors(mainEditor: TextEditor, force?: boolean): Promise<void>;
     findReferences(event: CommandEvent<TextEditorElement>): Promise<void>;
     highlightReferences(editor: TextEditor, references: Reference[] | null, force?: boolean): void;
+    getCursorPositionForEditor(editor: TextEditor): Point | null;
     getOrCreateMarkerLayerForEditor(editor: TextEditor): DisplayMarkerLayer;
     getOrCreateScrollGutterForEditor(editor: TextEditor): ScrollGutter;
     /**
