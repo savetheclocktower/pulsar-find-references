@@ -8,8 +8,7 @@ let manager: FindReferencesManager | undefined;
 let subscriptions: CompositeDisposable = new CompositeDisposable();
 const pendingProviders: FindReferencesProvider[] = [];
 
-export function activate () {
-  console.log('Activate!');
+export function activate() {
   manager ??= new FindReferencesManager();
 
   subscriptions.add(manager);
@@ -21,11 +20,11 @@ export function activate () {
   }
 }
 
-export function deactivate () {
+export function deactivate() {
   subscriptions.dispose();
 }
 
-export function consumeFindReferences (provider: FindReferencesProvider) {
+export function consumeFindReferences(provider: FindReferencesProvider) {
   if (manager) {
     manager.addProvider(provider);
   } else {
