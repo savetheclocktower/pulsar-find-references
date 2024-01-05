@@ -13,6 +13,8 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
     "noUnusedLocals": false,
+    "jsx": "react",
+    "jsxFactory": "etch.dom",
     "typeRoots": ["./typings"]
   },
   "include": ["typings", "lib/**/*", "spec/**/*"]

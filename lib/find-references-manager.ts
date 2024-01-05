@@ -2,21 +2,24 @@ import {
   CompositeDisposable,
   DisplayMarkerLayer,
   Disposable,
+  Point,
   TextEditor,
   TextEditorElement,
-
   CommandEvent,
   CursorPositionChangedEvent
 } from 'atom';
 import type { FindReferencesProvider } from './find-references.d';
-import type { Reference } from 'atom-ide-base';
+import type { FindReferencesReturn, Reference } from 'atom-ide-base';
 import ProviderRegistry from './provider-registry';
 import * as console from './console';
+import ReferencesView from './reference-panel/references-view';
 
 import {
   default as ScrollGutter,
   ScrollGutterVisibilityEvent
 } from './elements/scroll-gutter';
+
+type SplitDirection = 'left' | 'right' | 'up' | 'down' | 'none';
 
 export default class FindReferencesManager {
   public editor: TextEditor | null = null;
@@ -32,6 +35,7 @@ export default class FindReferencesManager {
 
   private enableScrollbarDecoration: boolean = true;
   private enableEditorDecoration: boolean = true;
+  private splitDirection: SplitDirection = 'none';
 
   private cursorMoveDelay: number = 200;
   private cursorMoveTimer?: NodeJS.Timeout | number;
@@ -47,16 +51,33 @@ export default class FindReferencesManager {
       this.providerRegistry.addProvider(provider);
     }
 
+    atom.workspace.addOpener(filePath => {
+      if (filePath.indexOf(ReferencesView.URI) !== -1)
+        return new ReferencesView();
+
+      return;
+    });
+
+
     this.subscriptions.add(
       atom.workspace.observeTextEditors(editor => {
         let disposable = this.watchEditor(editor);
         editor.onDidDestroy(() => disposable?.dispose());
       }),
       atom.commands.add('atom-text-editor', {
-        'pulsar-find-references:show': (_event: CommandEvent) => {
+        'pulsar-find-references:highlight': (_event: CommandEvent) => {
           return this.requestReferencesUnderCursor(true);
+        },
+        'pulsar-find-references:show-panel': (_event: CommandEvent) => {
+          return this.requestReferencesForPanel();
         }
       }),
+      atom.config.observe(
+        'pulsar-find-references.panel.splitDirection',
+        (value: SplitDirection) => {
+          this.splitDirection = value;
+        }
+      ),
       atom.config.observe(
         'pulsar-find-references.scrollbarDecoration.enable',
         (value: boolean) => {
@@ -173,6 +194,45 @@ export default class FindReferencesManager {
 
   // FIND REFERENCES
 
+  async requestReferencesForPanel() {
+    let editor = this.editor;
+    if (!editor) return;
+
+    let references = await this.getReferencesForProject(editor);
+    if (!references) return;
+    this.showReferencesPane(references);
+  }
+
+  showReferencesPane(references: FindReferencesReturn) {
+    if (references.type !== 'data') return;
+
+    // HACK
+    ReferencesView.setReferences(references.references, references.referencedSymbolName);
+
+    let splitDirection = this.splitDirection === 'none' ? undefined : this.splitDirection;
+    if (this.splitDirection === undefined) {
+      splitDirection = 'right';
+    }
+
+    return atom.workspace.open(
+      ReferencesView.URI,
+      {
+        searchAllPanes: true,
+        split: splitDirection
+      }
+    );
+  }
+
+  async getReferencesForProject(editor: TextEditor): Promise<FindReferencesReturn | null> {
+    let provider = this.providerRegistry.getFirstProviderForEditor(editor);
+    if (!provider) return Promise.resolve(null);
+
+    let position = this.getCursorPositionForEditor(editor);
+    if (!position) return Promise.resolve(null);
+
+    return provider.findReferences(editor, position);
+  }
+
   async requestReferencesUnderCursor(force: boolean = false) {
     let editor = this.editor;
     if (!editor) return;
@@ -213,6 +273,9 @@ export default class FindReferencesManager {
     }
 
     console.warn('REFERENCES:', result.references);
+
+    ReferencesView.setReferences(result.references, result.referencedSymbolName);
+
 
     for (let reference of result.references) {
       let { uri } = reference;
@@ -259,6 +322,14 @@ export default class FindReferencesManager {
     }
 
     this.updateScrollGutter(editor, references);
+  }
+
+  getCursorPositionForEditor(editor: TextEditor): Point | null {
+    let cursors = editor.getCursors();
+    if (cursors.length > 1) return null;
+    let [cursor] = cursors;
+    let position = cursor.getBufferPosition();
+    return position;
   }
 
   getOrCreateMarkerLayerForEditor(editor: TextEditor) {

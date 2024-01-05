@@ -53,6 +53,7 @@
       "order": 3,
       "type": "object",
       "title": "Scrollbar Decoration",
+      "description": "Settings for the annotations that appear behind an editor’s vertical scrollbar.",
       "properties": {
         "enable": {
           "title": "Enable",
@@ -76,8 +77,28 @@
         }
       }
     },
-    "advanced": {
+    "panel": {
+      "title": "Panel",
+      "description": "Settings for the panel that appears when **Find References: Show Panel** is invoked.",
       "order": 4,
+      "type": "object",
+      "title": "Results Panel",
+      "properties": {
+        "splitDirection": {
+          "type": "string",
+          "default": "none",
+          "enum": [
+            "none",
+            "right",
+            "down"
+          ],
+          "title": "Direction to open results pane",
+          "description": "Direction to split the active pane when showing reference results. If `none`, the results will be shown in the active pane."
+        }
+      }
+    },
+    "advanced": {
+      "order": 5,
       "type": "object",
       "title": "Advanced",
       "properties": {
@@ -102,6 +123,10 @@
   },
   "dependencies": {
     "atom-utils-plus": "^0.11.0",
-    "element-resize-detector": "^1.2.4"
+    "classnames": "^2.5.1",
+    "element-resize-detector": "^1.2.4",
+    "etch": "^0.14.1",
+    "fs-plus": "^3.1.1",
+    "minimatch": "^9.0.3"
   }
 }
