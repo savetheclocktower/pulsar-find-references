@@ -34,7 +34,9 @@ export default class ScrollGutter extends HTMLElement {
   private editorView: TextEditorElement | null = null;
   private scrollbar: HTMLElement | null = null;
   private scrollView: HTMLElement | null = null;
-  private attachedToTextEditor: boolean = false;
+
+  private lastEditorWidth: number = 0;
+  private lastEditorHeight: number = 0;
 
   private screenRanges: Range[] | null = null;
 
@@ -44,10 +46,10 @@ export default class ScrollGutter extends HTMLElement {
   public height: number = 0;
   public width: number = 0;
 
-  private offscreenFirstRow: number | null = null;
-  private offscreenLastRow: number | null = null;
-
+  private resizeObserver: ResizeObserver;
   private frameRequested: boolean = false;
+
+  private config!: ScrollGutterConfig;
 
   // CANVAS STUFF
 
@@ -56,18 +58,12 @@ export default class ScrollGutter extends HTMLElement {
   private visible: boolean = true;
   private created: boolean = false;
 
-  private scrollbarDecorationEnabled?: boolean;
-  private markerColor?: Color;
-  private markerOpacity?: number;
-
-  private config?: ScrollGutterConfig;
-
   private redrawTimeout?: NodeJS.Timeout;
 
   constructor() {
     super();
+    this.resizeObserver ??= new ResizeObserver(_ => this.measureHeightAndWidth());
     if (this.created) return;
-    this.initializeContent();
     this.initializeCanvas();
     this.created = true;
   }
@@ -88,6 +84,8 @@ export default class ScrollGutter extends HTMLElement {
     this.scrollView = scrollView as HTMLElement;
     this.scrollbar = scrollbar as HTMLElement;
 
+    this.resizeObserver.observe(this.scrollbar);
+
     let parent = scrollbar.parentNode;
     if (!parent) {
       throw new Error(`No node to attach to!`);
@@ -96,23 +94,19 @@ export default class ScrollGutter extends HTMLElement {
     let grammar = editor.getGrammar();
 
     this.subscriptions.add(
+      // Redraw the gutters when the grammar changes — a new root scope might
+      // mean new config values.
       editor.onDidChangeGrammar(() => {
         this.getConfig(editor);
+        this.redrawAfterConfigChange();
       }),
+      // Redraw the gutters when the config changes.
       atom.config.observe(
         'pulsar-find-references.scrollbarDecoration',
         { scope: [grammar.scopeName] },
         _ => {
           this.getConfig(editor);
-          if (this.isVisible()) {
-            if (this.redrawTimeout) {
-              clearTimeout(this.redrawTimeout);
-              this.redrawTimeout = undefined;
-            }
-            this.redrawTimeout = setTimeout(() => {
-              this.drawScreenRanges(true);
-            }, 500);
-          }
+          this.redrawAfterConfigChange();
         }
       ),
     );
@@ -120,14 +114,25 @@ export default class ScrollGutter extends HTMLElement {
     parent.appendChild(this);
   }
 
+  redrawAfterConfigChange() {
+    if (this.isVisible()) {
+      if (this.redrawTimeout) {
+        clearTimeout(this.redrawTimeout);
+        this.redrawTimeout = undefined;
+      }
+      this.redrawTimeout = setTimeout(() => {
+        this.drawScreenRanges(true);
+      }, 500);
+    }
+  }
+
   getConfig(editor: TextEditor) {
-    let config: ScrollGutterConfig = this.getScopedSettingsForKey<ScrollGutterConfig>(
+    this.config = this.getScopedSettingsForKey<ScrollGutterConfig>(
       'pulsar-find-references.scrollbarDecoration',
       editor
     );
 
-    this.config = config;
-    return config;
+    return this.config;
   }
 
   connectedCallback() {
@@ -159,7 +164,6 @@ export default class ScrollGutter extends HTMLElement {
     this.measureHeightAndWidth();
     this.attached = true;
     this.editorView = this.queryParentSelector('atom-text-editor') as TextEditorElement | null;
-    this.attachedToTextEditor = !!this.editorView;
 
     this.subscriptions.add(this.subscribeToMediaQuery());
   }
@@ -174,9 +178,6 @@ export default class ScrollGutter extends HTMLElement {
     });
   }
 
-  initializeContent() {
-  }
-
   initializeCanvas() {
     this.canvas ??= document.createElement('canvas');
     this.canvasContext = this.canvas.getContext(
@@ -188,38 +189,26 @@ export default class ScrollGutter extends HTMLElement {
   }
 
   measureHeightAndWidth(visibilityChanged: boolean = false, forceUpdate: boolean = true) {
-    console.log('measureHeightAndWidth');
     let wasResized = this.width !== this.clientWidth || this.height !== this.clientHeight;
 
     if (!this.scrollbar || !this.scrollView) {
-      console.log('no scrollbar!');
       this.height = this.clientHeight;
       this.width = this.clientWidth;
     } else {
-      console.log('scrollbar!', this.scrollbar);
       let barRect = this.scrollbar.getBoundingClientRect();
-      // let viewRect = this.scrollView.getBoundingClientRect();
       this.height = barRect.height;
       this.width =  barRect.width;
-      console.log('measuring width and height as:', this.width, this.height);
+      console.debug('Measuring width and height as:', this.width, this.height);
     }
-
-    console.log('wasResized:', wasResized, 'visibilityChanged:', visibilityChanged, 'forceUpdate:', forceUpdate);
 
     if (wasResized || visibilityChanged || forceUpdate) {
       this.requestForcedUpdate();
     }
 
     if (!this.isVisible()) return;
-
-    if (wasResized || forceUpdate) {
-
-    }
   }
 
   requestForcedUpdate() {
-    this.offscreenFirstRow = null;
-    this.offscreenLastRow = null;
     this.requestUpdate();
   }
 
@@ -234,8 +223,7 @@ export default class ScrollGutter extends HTMLElement {
   }
 
   update() {
-    console.log('Element update!');
-    // if (!(this.attached && this.isVisible())) return;
+    console.debug('Element update!');
     if (!this.visible) {
       this.style.visibility = 'hidden';
       return;
@@ -243,26 +231,34 @@ export default class ScrollGutter extends HTMLElement {
       this.style.visibility = 'visible';
     }
 
-    // let pixelRatio = window.devicePixelRatio;
-    // let width = Math.min(this.canvas.width / devicePixelRatio, this.width);
-
     this.style.width = this.width ? `${this.width}px` : '';
     this.style.height = this.height ? `${this.height}px` : '';
 
-    let canvasDimensionsChanged = false;
+    let shouldRedraw = false;
+
+    if (!this.editorView) return;
+    if (this.editorView.offsetWidth !== this.lastEditorWidth) {
+      shouldRedraw = true;
+    }
+    if (this.editorView.offsetHeight !== this.lastEditorHeight) {
+      shouldRedraw = true;
+    }
+
+    this.lastEditorWidth = this.editorView.offsetWidth;
+    this.lastEditorHeight = this.editorView.offsetHeight;
 
     if (this.canvas) {
       if (this.canvas.width !== this.width) {
         this.canvas.width = this.width;
-        canvasDimensionsChanged = true;
+        shouldRedraw = true;
       }
       if (this.canvas.height !== this.height) {
         this.canvas.height = this.height;
-        canvasDimensionsChanged = true;
+        shouldRedraw = true;
       }
     }
 
-    if (canvasDimensionsChanged) {
+    if (shouldRedraw) {
       this.drawScreenRanges();
     }
   }
@@ -270,41 +266,32 @@ export default class ScrollGutter extends HTMLElement {
   clearReferences() {
     this.screenRanges = [];
     if (!this.canvas || !this.canvasContext) return;
-    console.warn('clearing ranges!');
     this.canvasContext.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
   highlightReferences(references: Reference[] | null) {
-    console.log('ELEMENT highlightReferences');
     if (this.getEditorHeight() <= this.getScrollbarHeight()) {
       return;
     }
     let { editor } = this;
-    if (!editor) {
-      console.warn('WTF? no editor!');
-      return;
-    }
-    let path = editor.getPath();
+    if (!editor) return;
 
     let { config } = this;
-    if (!config) {
-      throw new Error(`No config defined!`);
-    }
 
     this.clearReferences();
+
     if (!references || !config.enable) {
       this.setVisibility(false);
       return;
     }
 
+    let path = editor.getPath();
     for (let reference of references) {
       let { uri, range } = reference;
-      if (uri !== path) {
-        console.log('skipping:', reference, uri, path);
-        continue;
-      }
+      if (uri !== path) continue;
+
       let screenRange = editor.screenRangeForBufferRange(range);
-      console.log('buffer range', range.toString(), 'maps to screen range:', screenRange.toString());
+      console.debug('Buffer range', range.toString(), 'maps to screen range', screenRange.toString());
       this.screenRanges!.push(screenRange);
     }
 
@@ -313,18 +300,17 @@ export default class ScrollGutter extends HTMLElement {
   }
 
   drawScreenRanges(clear = false) {
-    console.log('drawScreenRanges on canvas:', this.canvas, clear, this.screenRanges);
-    if (!this.screenRanges || !this.editor || !this.canvas) {
-      console.warn('oops!');
+    if (!this.screenRanges || !this.editor || !this.canvas || !this.canvasContext) {
       return;
     }
+
     if (clear) {
-      console.log('CLEARING!');
       this.canvasContext!.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
+
+    let lineCount = this.editor.getScreenLineCount();
     for (let range of this.screenRanges) {
       let row = range.start.row;
-      let lineCount = this.editor.getScreenLineCount();
       this.drawRectForEditorRow(row, lineCount);
     }
   }
@@ -332,8 +318,7 @@ export default class ScrollGutter extends HTMLElement {
   getEditorHeight() {
     if (!this.scrollView) return 0;
     let child = this.scrollView.firstChild as HTMLElement | null;
-    if (!child) return 0;
-    return child.clientHeight;
+    return child ? child.clientHeight : 0;
   }
 
   getScrollbarHeight() {
@@ -343,45 +328,22 @@ export default class ScrollGutter extends HTMLElement {
   }
 
   drawRectForEditorRow(row: number, totalRows: number) {
-    // if (!this.canvas) return;
     let { height, width } = this.canvas!;
     let { markerColor, markerOpacity } = this.config!;
-
-
-    let editorHeight = this.getEditorHeight();
-    let scrollbarHeight = this.getScrollbarHeight();
-    // let scaledHeight = editorHeight - height;
-    let pillHeight = (height / editorHeight) * height;
-
-    let scrollbarHeightWithoutPillHeight = height - pillHeight;
-    let finalScaleFactor =  height / scrollbarHeightWithoutPillHeight;
-
-    console.log('editor height is', editorHeight);
-    console.log('scrollbar height is', this.scrollbar!.clientHeight);
-    console.log('canvas height is', height);
-
-    console.log('pillHeight should be about', pillHeight);
-    console.log('scrollbarHeightWithoutPillHeight is', scrollbarHeightWithoutPillHeight);
 
     let ctx = this.canvasContext!;
     ctx.fillStyle = markerColor.toHexString();
     ctx.globalAlpha = markerOpacity;
 
-    if (!ctx) {
-      console.warn('no context!');
-      return;
-    }
-    console.log('FILL IS', ctx.fillStyle);
-    console.log('ALPHA IS', ctx.globalAlpha);
-    let rowPercentage = row / totalRows;
-    console.log('rowPercentage for', row, 'is', rowPercentage);
-    // console.log('thus the ');
     let pixelHeightPerRow = height / totalRows;
-    // let pixelHeightPerRow = scrollbarHeightWithoutPillHeight / totalRows;
+
     let rectHeight = Math.max(pixelHeightPerRow, devicePixelRatio);
     let startY = pixelHeightPerRow * row;
-    console.log('drawing rect for row', row, 'at:', 0, startY, width, rectHeight, ctx.fillStyle);
-    ctx.fillRect(0, startY, width, rectHeight);
+    if (rectHeight > devicePixelRatio) {
+      startY += ((pixelHeightPerRow / 2) - (devicePixelRatio / 2));
+    }
+
+    ctx.fillRect(0, startY, width, devicePixelRatio);
   }
 
   setVisibility(shouldBeVisible: boolean) {
@@ -440,9 +402,3 @@ export default class ScrollGutter extends HTMLElement {
 }
 
 customElements.define(TAG_NAME, ScrollGutter);
-
-export function createScrollGutterElement(): ScrollGutter {
-  let element: ScrollGutter = document.createElement(TAG_NAME) as ScrollGutter;
-  // element.createdCallback();
-  return element;
-}
