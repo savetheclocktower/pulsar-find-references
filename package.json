@@ -1,7 +1,7 @@
 {
   "name": "pulsar-find-references",
   "main": "./dist/main",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "description": "An IDE UI package for highlighting references to the token under the cursor",
   "keywords": [],
   "scripts": {
@@ -78,11 +78,10 @@
       }
     },
     "panel": {
-      "title": "Panel",
+      "title": "Results Panel",
       "description": "Settings for the panel that appears when **Find References: Show Panel** is invoked.",
       "order": 4,
       "type": "object",
-      "title": "Results Panel",
       "properties": {
         "splitDirection": {
           "type": "string",
