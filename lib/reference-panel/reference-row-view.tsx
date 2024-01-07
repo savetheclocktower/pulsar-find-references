@@ -75,7 +75,7 @@ export default class ReferenceRowView {
   }
 
   async update(newProps: Partial<ReferenceRowViewProperties>) {
-    let props = { ...this.props, newProps };
+    let props = { ...this.props, ...newProps };
 
     let { relativePath, reference, isSelected = false } = props;
     let changed = false;
