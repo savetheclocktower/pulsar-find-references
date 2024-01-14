@@ -58,7 +58,6 @@ export default class FindReferencesManager {
       return;
     });
 
-
     this.subscriptions.add(
       atom.workspace.observeTextEditors(editor => {
         let disposable = this.watchEditor(editor);
@@ -241,7 +240,6 @@ export default class FindReferencesManager {
   }
 
   async findReferencesForVisibleEditors(mainEditor: TextEditor, force: boolean = false) {
-    console.log('findReferencesForVisibleEditors', mainEditor, force);
     let visibleEditors = this.getVisibleEditors();
 
     let editorMap = new Map();
@@ -266,7 +264,9 @@ export default class FindReferencesManager {
 
     let result = await provider.findReferences(mainEditor, position);
 
-    if (!result || result.type === 'error') {
+    if (!result) return;
+
+    if (result.type === 'error') {
       console.error(`Error getting references: ${result?.message ?? 'null'}`);
       this.clearAllVisibleScrollGutters();
       return;
@@ -275,7 +275,6 @@ export default class FindReferencesManager {
     console.warn('REFERENCES:', result.references);
 
     ReferencesView.setReferences(result.references, result.referencedSymbolName);
-
 
     for (let reference of result.references) {
       let { uri } = reference;
@@ -303,15 +302,24 @@ export default class FindReferencesManager {
   }
 
   highlightReferences(editor: TextEditor, references: Reference[] | null, force: boolean = false) {
-    console.log('highlightReferences', editor, references, force);
     let editorMarkerLayer = this.getOrCreateMarkerLayerForEditor(editor);
+    if (editorMarkerLayer.isDestroyed()) return;
     editorMarkerLayer.clear();
 
     if (this.enableEditorDecoration || force) {
+      let filteredReferences: Reference[] = [];
+      let rangeSet = new Set<string>();
       let currentPath = editor.getPath();
       for (let reference of (references ?? [])) {
         let { range, uri } = reference;
+        let key = range.toString();
         if (uri !== currentPath) continue;
+        if (rangeSet.has(key)) continue;
+        rangeSet.add(key);
+        filteredReferences.push(reference);
+      }
+
+      for (let { range } of filteredReferences) {
         editorMarkerLayer.markBufferRange(range);
       }
 

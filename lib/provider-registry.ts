@@ -1,12 +1,11 @@
 import { Disposable, TextEditor } from 'atom';
 import type { FindReferencesProvider } from './find-references.d';
-import * as console from './console';
+// import * as console from './console';
 
 export default class ProviderRegistry<Provider extends FindReferencesProvider> {
   providers: Array<Provider> = [];
 
   addProvider(provider: Provider): Disposable {
-    console.log('addProvider:', provider);
     this.providers.push(provider);
     return new Disposable(() => this.removeProvider(provider));
   }
