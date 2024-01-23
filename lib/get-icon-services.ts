@@ -1,5 +1,6 @@
 import DefaultFileIcons from './default-file-icons';
 import { CompositeDisposable, Disposable, Emitter } from 'atom';
+import * as console from './console';
 
 type IconService = any;
 type Callback = () => any;
