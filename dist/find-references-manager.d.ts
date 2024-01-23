@@ -6,6 +6,7 @@ import { default as ScrollGutter, ScrollGutterVisibilityEvent } from './elements
 export default class FindReferencesManager {
     editor: TextEditor | null;
     editorView: TextEditorElement | null;
+    private isTyping;
     private subscriptions;
     providerRegistry: ProviderRegistry<FindReferencesProvider>;
     private editorSubscriptions;
@@ -13,10 +14,12 @@ export default class FindReferencesManager {
     private markerLayersForEditors;
     private scrollGuttersForEditors;
     private enableScrollbarDecoration;
-    private enableEditorDecoration;
     private splitDirection;
+    private enableEditorDecoration;
+    private skipCurrentReference;
     private cursorMoveDelay;
     private cursorMoveTimer?;
+    private typingTimer?;
     constructor();
     initialize(pendingProviders: FindReferencesProvider[]): void;
     addProvider(provider: FindReferencesProvider): void;
@@ -25,7 +28,7 @@ export default class FindReferencesManager {
     updateCurrentEditor(editor: TextEditor | null): void;
     onCursorMove(_event?: CursorPositionChangedEvent): void;
     requestReferencesForPanel(): Promise<void>;
-    showReferencesPane(references: FindReferencesReturn): Promise<object> | undefined;
+    showReferencesPanel(result: FindReferencesReturn): Promise<object> | undefined;
     getReferencesForProject(editor: TextEditor): Promise<FindReferencesReturn | null>;
     requestReferencesUnderCursor(force?: boolean): Promise<void>;
     findReferencesForVisibleEditors(mainEditor: TextEditor, force?: boolean): Promise<void>;
