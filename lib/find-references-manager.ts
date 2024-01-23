@@ -14,6 +14,10 @@ import ProviderRegistry from './provider-registry';
 import * as console from './console';
 import ReferencesView from './reference-panel/references-view';
 
+// How long after the user last typed a character before we consider them to no
+// longer be typing.
+const TYPING_DELAY = 1000;
+
 import {
   default as ScrollGutter,
   ScrollGutterVisibilityEvent
@@ -25,6 +29,8 @@ export default class FindReferencesManager {
   public editor: TextEditor | null = null;
   public editorView: TextEditorElement | null = null;
 
+  private isTyping: boolean = false;
+
   private subscriptions: CompositeDisposable = new CompositeDisposable();
   public providerRegistry: ProviderRegistry<FindReferencesProvider> = new ProviderRegistry();
 
@@ -34,11 +40,14 @@ export default class FindReferencesManager {
   private scrollGuttersForEditors: WeakMap<TextEditor, ScrollGutter> = new WeakMap();
 
   private enableScrollbarDecoration: boolean = true;
-  private enableEditorDecoration: boolean = true;
   private splitDirection: SplitDirection = 'none';
 
+  private enableEditorDecoration: boolean = true;
+  private skipCurrentReference: boolean = true;
   private cursorMoveDelay: number = 200;
+
   private cursorMoveTimer?: NodeJS.Timeout | number;
+  private typingTimer?: NodeJS.Timeout | number;
 
   constructor() {
     this.onCursorMove = this.onCursorMove.bind(this);
@@ -81,24 +90,30 @@ export default class FindReferencesManager {
         'pulsar-find-references.scrollbarDecoration.enable',
         (value: boolean) => {
           this.enableScrollbarDecoration = value;
-          console.log('enableScrollbarDecoration is now', value);
         }
       ),
       atom.config.observe(
         'pulsar-find-references.editorDecoration.enable',
         (value: boolean) => {
           this.enableEditorDecoration = value;
-          console.log('enableEditorDecoration is now', value);
         }
       ),
       atom.config.observe(
-        'pulsar-find-references.general.delay',
+        'pulsar-find-references.editorDecoration.delay',
         (value: number) => {
           this.cursorMoveDelay = value;
         }
-      )
+      ),
+      atom.config.observe(
+        'pulsar-find-references.editorDecoration.skipCurrentReference',
+        (value: boolean) => {
+          this.skipCurrentReference = value;
+        }
+      ),
     );
   }
+
+
 
   addProvider(provider: FindReferencesProvider) {
     this.providerRegistry.addProvider(provider);
@@ -123,6 +138,8 @@ export default class FindReferencesManager {
     editorView.addEventListener('focus', onFocus);
     editorView.addEventListener('blur', onBlur);
 
+    let subscriptions = new CompositeDisposable();
+
     let disposable = new Disposable(() => {
       editorView.removeEventListener('focus', onFocus);
       editorView.removeEventListener('blur', onBlur);
@@ -132,11 +149,24 @@ export default class FindReferencesManager {
       }
     });
 
+    subscriptions.add(
+      disposable,
+      editor.getBuffer().onDidChange(() => {
+        this.isTyping = true;
+        clearTimeout(this.typingTimer);
+        clearTimeout(this.cursorMoveTimer);
+        this.typingTimer = setTimeout(
+          () => this.isTyping = false,
+          1000
+        );
+      })
+    );
+
     this.watchedEditors.add(editor);
     this.subscriptions.add(disposable);
 
     return new Disposable(() => {
-      disposable.dispose();
+      subscriptions.dispose();
       this.subscriptions.remove(disposable);
       this.watchedEditors.delete(editor);
     });
@@ -169,10 +199,6 @@ export default class FindReferencesManager {
   // EVENT HANDLERS
 
   onCursorMove(_event?: CursorPositionChangedEvent) {
-    if (!this.enableEditorDecoration && !this.enableScrollbarDecoration) {
-      // There's no reason to proceed.
-      return;
-    }
     if (this.cursorMoveTimer !== undefined) {
       clearTimeout(this.cursorMoveTimer);
       this.cursorMoveTimer === undefined;
@@ -183,11 +209,16 @@ export default class FindReferencesManager {
       layer.clear();
     }
 
+    if (this.isTyping) {
+      console.log('User is typing, so wait longer than usual…');
+    }
     this.cursorMoveTimer = setTimeout(
       async () => {
         await this.requestReferencesUnderCursor();
       },
-      this.cursorMoveDelay
+      // When the user is typing, wait at least as long as the typing delay
+      // window.
+      this.isTyping ? TYPING_DELAY : this.cursorMoveDelay
     );
   }
 
@@ -199,14 +230,14 @@ export default class FindReferencesManager {
 
     let references = await this.getReferencesForProject(editor);
     if (!references) return;
-    this.showReferencesPane(references);
+    this.showReferencesPanel(references);
   }
 
-  showReferencesPane(references: FindReferencesReturn) {
-    if (references.type !== 'data') return;
+  showReferencesPanel(result: FindReferencesReturn) {
+    if (result.type !== 'data') return;
 
     // HACK
-    ReferencesView.setReferences(references.references, references.referencedSymbolName);
+    ReferencesView.setReferences(result.references, result.referencedSymbolName);
 
     let splitDirection = this.splitDirection === 'none' ? undefined : this.splitDirection;
     if (this.splitDirection === undefined) {
@@ -305,6 +336,7 @@ export default class FindReferencesManager {
     let editorMarkerLayer = this.getOrCreateMarkerLayerForEditor(editor);
     if (editorMarkerLayer.isDestroyed()) return;
     editorMarkerLayer.clear();
+    let cursorPosition = editor.getLastCursor().getBufferPosition();
 
     if (this.enableEditorDecoration || force) {
       let filteredReferences: Reference[] = [];
@@ -315,6 +347,9 @@ export default class FindReferencesManager {
         let key = range.toString();
         if (uri !== currentPath) continue;
         if (rangeSet.has(key)) continue;
+        if (this.skipCurrentReference && range.containsPoint(cursorPosition))
+          continue;
+
         rangeSet.add(key);
         filteredReferences.push(reference);
       }
