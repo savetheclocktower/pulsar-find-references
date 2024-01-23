@@ -1,6 +1,10 @@
 import { Disposable, TextEditor } from 'atom';
 import type { FindReferencesProvider } from './find-references.d';
-// import * as console from './console';
+import * as console from './console';
+
+// This is what I'm reduced to just to get `typescript-language-server` to stop
+// suggesting that I remove this import.
+console!;
 
 export default class ProviderRegistry<Provider extends FindReferencesProvider> {
   providers: Array<Provider> = [];
