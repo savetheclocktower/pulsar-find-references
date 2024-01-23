@@ -32,6 +32,7 @@ export default class ScrollGutter extends HTMLElement {
     private redrawTimeout?;
     constructor();
     attachToEditor(editor: TextEditor): void;
+    attachToScrollbar(): void;
     redrawAfterConfigChange(): void;
     getConfig(editor: TextEditor): ScrollGutterConfig;
     connectedCallback(): void;

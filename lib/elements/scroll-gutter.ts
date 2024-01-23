@@ -4,12 +4,14 @@ import {
   Disposable,
   Range,
   TextEditor,
-  TextEditorElement
+  TextEditorElement,
+  TextEditorComponent,
 } from 'atom';
 import elementResizeDetectorFactory from 'element-resize-detector';
 import type { Reference } from 'atom-ide-base';
 import * as console from '../console';
 
+const MINIMUM_GUTTER_WIDTH = 15;
 const TAG_NAME = 'pulsar-find-references-scroll-gutter';
 
 const RESIZE_DETECTOR = elementResizeDetectorFactory({ strategy: 'scroll' });
@@ -27,7 +29,6 @@ type ScrollGutterConfig = {
 export type ScrollGutterVisibilityEvent = CustomEvent<{ visible: boolean, editor: TextEditor }>;
 
 export default class ScrollGutter extends HTMLElement {
-  // public enabled: boolean = true;
   public attached: boolean = false;
 
   public editor: TextEditor | null = null;
@@ -69,24 +70,17 @@ export default class ScrollGutter extends HTMLElement {
   }
 
   attachToEditor(editor: TextEditor) {
-    console.log('attaching to editor:', editor);
+    console.debug('Attaching to editor:', editor);
     if (this.attached && this.editor === editor) return;
 
     this.editor = editor;
+    this.editorView = atom.views.getView(editor);
+
     this.getConfig(editor);
-    let container = atom.views.getView(editor);
 
-    let scrollView = container.querySelector('.scroll-view');
-    let scrollbar = container.querySelector('.scroll-view .vertical-scrollbar');
-    if (!scrollbar || !scrollView) {
-      throw new Error(`No scrollbar or scroll-view!`);
-    }
-    this.scrollView = scrollView as HTMLElement;
-    this.scrollbar = scrollbar as HTMLElement;
+    this.attachToScrollbar();
 
-    this.resizeObserver.observe(this.scrollbar);
-
-    let parent = scrollbar.parentNode;
+    let parent = this.scrollbar!.parentNode;
     if (!parent) {
       throw new Error(`No node to attach to!`);
     }
@@ -112,6 +106,35 @@ export default class ScrollGutter extends HTMLElement {
     );
 
     parent.appendChild(this);
+  }
+
+  attachToScrollbar() {
+    // @ts-expect-error Private API
+    let component: TextEditorComponent = this.editor.component;
+    // @ts-expect-error Private API
+    let scrollView = component.refs.scrollContainer;
+    // @ts-expect-error Private API
+    let scrollbar = component.refs.verticalScrollbar?.element;
+
+    // @ts-expect-error Private API
+    if (!component.isVisible()) {
+      console.debug(`Waiting until later to render because we're hidden`);
+    }
+
+    if (!scrollbar || !scrollView) {
+      throw new Error(`No scrollbar or scrollView!`);
+    }
+
+    if (this.scrollbar !== scrollbar) {
+      if (this.scrollbar !== null) {
+        this.resizeObserver.unobserve(this.scrollbar);
+      }
+      this.scrollbar = scrollbar;
+      this.resizeObserver.observe(this.scrollbar!);
+    }
+    if (this.scrollView !== scrollView) {
+      this.scrollView = scrollView;
+    }
   }
 
   redrawAfterConfigChange() {
@@ -163,7 +186,6 @@ export default class ScrollGutter extends HTMLElement {
 
     this.measureHeightAndWidth();
     this.attached = true;
-    this.editorView = this.queryParentSelector('atom-text-editor') as TextEditorElement | null;
 
     this.subscriptions.add(this.subscribeToMediaQuery());
   }
@@ -191,14 +213,25 @@ export default class ScrollGutter extends HTMLElement {
   measureHeightAndWidth(visibilityChanged: boolean = false, forceUpdate: boolean = true) {
     let wasResized = this.width !== this.clientWidth || this.height !== this.clientHeight;
 
+    if (!this.scrollbar || !this.scrollbar.parentNode) {
+      console.log('Reattaching to scrollbar!');
+      this.attachToScrollbar();
+    }
+
     if (!this.scrollbar || !this.scrollView) {
       this.height = this.clientHeight;
       this.width = this.clientWidth;
     } else {
       let barRect = this.scrollbar.getBoundingClientRect();
       this.height = barRect.height;
-      this.width =  barRect.width;
-      console.debug('Measuring width and height as:', this.width, this.height);
+      // In some scenarios, the scrollbar might have height but no width; it's
+      // happened to me once in a while, but not in any sort of reproducible
+      // way. We can still enforce a minimum width for the gutter view.
+      //
+      // TODO: Make this configurable?
+      this.width =  Math.max(barRect.width, MINIMUM_GUTTER_WIDTH);
+      console.debug(this.editor?.id, 'actual scrollbar width:', barRect.width);
+      console.debug(this.editor?.id, 'Measuring width and height as:', this.width, this.height);
     }
 
     if (wasResized || visibilityChanged || forceUpdate) {
@@ -353,6 +386,12 @@ export default class ScrollGutter extends HTMLElement {
       this.visible = shouldBeVisible;
       this.requestUpdate();
     }
+
+    if (!this.isVisible()) {
+      console.log('Failed sanity check! Recomputing dimensions…');
+      this.measureHeightAndWidth();
+    }
+
     let event = new CustomEvent(
       'visibility-changed',
       {
@@ -368,7 +407,7 @@ export default class ScrollGutter extends HTMLElement {
   }
 
   isVisible() {
-    return this.offsetWidth > 0 || this.offsetHeight > 0;
+    return this.offsetWidth > 0 && this.offsetHeight > 0;
   }
 
   // UTIL
