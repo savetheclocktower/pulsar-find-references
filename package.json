@@ -24,33 +24,36 @@
     }
   },
   "configSchema": {
-    "general": {
-      "order": 1,
-      "type": "object",
-      "title": "General",
-      "properties": {
-        "delay": {
-          "type": "number",
-          "default": 200,
-          "description": "Time, in milliseconds, to wait after the cursor moves before attempting to highlight similar tokens."
-        }
-      }
-    },
     "editorDecoration": {
-      "order": 2,
+      "order": 1,
       "type": "object",
       "title": "Editor Decoration",
       "properties": {
         "enable": {
-          "title": "Enable",
-          "description": "When checked, matching references will be highlighted in the editor itself. (The **Pulsar Find References: Show** command will always show references in the editor when invoked, even if this setting is disabled.)",
+          "order": 2,
+          "title": "Highlight References on Cursor Movement",
+          "description": "When checked, matching references will be highlighted in the editor itself whenever the cursor moves. When unchecked, you must invoke the **Pulsar Find References: Highlight** command to highlight references under the cursor.",
           "type": "boolean",
           "default": true
+        },
+        "delay": {
+          "order": 3,
+          "type": "number",
+          "default": 400,
+          "title": "Delay",
+          "description": "How long, in milliseconds, to wait after the cursor moves before attempting to highlight similar tokens. (Has no effect if the above setting is unchecked.)"
+        },
+        "skipCurrentReference": {
+          "order": 4,
+          "type": "boolean",
+          "default": true,
+          "title": "Skip Current Reference",
+          "description": "When enabled, the reference currently under the cursor won’t be highlighted."
         }
       }
     },
     "scrollbarDecoration": {
-      "order": 3,
+      "order": 5,
       "type": "object",
       "title": "Scrollbar Decoration",
       "description": "Settings for the annotations that appear behind an editor’s vertical scrollbar.",
@@ -80,10 +83,11 @@
     "panel": {
       "title": "Results Panel",
       "description": "Settings for the panel that appears when **Find References: Show Panel** is invoked.",
-      "order": 4,
+      "order": 5,
       "type": "object",
       "properties": {
         "splitDirection": {
+          "order": 3,
           "type": "string",
           "default": "none",
           "enum": [
@@ -91,13 +95,13 @@
             "right",
             "down"
           ],
-          "title": "Direction to open results pane",
+          "title": "Direction to Open Results Pane",
           "description": "Direction to split the active pane when showing reference results. If `none`, the results will be shown in the active pane."
         }
       }
     },
     "advanced": {
-      "order": 5,
+      "order": 6,
       "type": "object",
       "title": "Advanced",
       "properties": {
