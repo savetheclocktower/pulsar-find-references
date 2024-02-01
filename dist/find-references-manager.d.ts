@@ -17,6 +17,7 @@ export default class FindReferencesManager {
     private splitDirection;
     private enableEditorDecoration;
     private skipCurrentReference;
+    private ignoreThreshold;
     private cursorMoveDelay;
     private cursorMoveTimer?;
     private typingTimer?;

@@ -36,19 +36,28 @@
           "type": "boolean",
           "default": true
         },
-        "delay": {
+        "skipCurrentReference": {
           "order": 3,
+          "type": "boolean",
+          "default": true,
+          "title": "Skip Current Reference",
+          "description": "When enabled, the reference currently under the cursor won’t be highlighted."
+        },
+        "delay": {
+          "order": 4,
           "type": "number",
           "default": 400,
           "title": "Delay",
           "description": "How long, in milliseconds, to wait after the cursor moves before attempting to highlight similar tokens. (Has no effect if the above setting is unchecked.)"
         },
-        "skipCurrentReference": {
-          "order": 4,
-          "type": "boolean",
-          "default": true,
-          "title": "Skip Current Reference",
-          "description": "When enabled, the reference currently under the cursor won’t be highlighted."
+        "ignoreThreshold": {
+          "order": 5,
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 1,
+          "title": "Threshold for Ignoring Decorations",
+          "description": "A ratio for how many references need to be suggested in a given file before we decide that it’s too many to be worth showing. For instance, if the cursor lands on `true`, some language servers might be inclined to try to return references to all `true`s in the file — which typically isn’t helpful.\n\nThis setting defaults to `0`, which **disables** this behavior. To enable it, set it to a value between `0` and `1`. For example, `0.2` means that, in a hypothetical 1000-line file, we’d ignore any effort to decorate a list of more than 200 references. **This setting applies to scrollbar decoration as well.**"
         }
       }
     },

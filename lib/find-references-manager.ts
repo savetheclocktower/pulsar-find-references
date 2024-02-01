@@ -44,6 +44,7 @@ export default class FindReferencesManager {
 
   private enableEditorDecoration: boolean = true;
   private skipCurrentReference: boolean = true;
+  private ignoreThreshold: number = 0;
   private cursorMoveDelay: number = 200;
 
   private cursorMoveTimer?: NodeJS.Timeout | number;
@@ -105,6 +106,12 @@ export default class FindReferencesManager {
         }
       ),
       atom.config.observe(
+        'pulsar-find-references.editorDecoration.ignoreThreshold',
+        (value: number) => {
+          this.ignoreThreshold = value;
+        }
+      ),
+      atom.config.observe(
         'pulsar-find-references.editorDecoration.skipCurrentReference',
         (value: boolean) => {
           this.skipCurrentReference = value;
@@ -112,8 +119,6 @@ export default class FindReferencesManager {
       ),
     );
   }
-
-
 
   addProvider(provider: FindReferencesProvider) {
     this.providerRegistry.addProvider(provider);
@@ -304,8 +309,7 @@ export default class FindReferencesManager {
       return;
     }
 
-    console.warn('REFERENCES:', result.references);
-
+    console.debug('REFERENCES:', result.references);
     ReferencesView.setReferences(result.references, result.referencedSymbolName);
 
     for (let reference of result.references) {
@@ -335,6 +339,7 @@ export default class FindReferencesManager {
 
   highlightReferences(editor: TextEditor, references: Reference[] | null, force: boolean = false) {
     let editorMarkerLayer = this.getOrCreateMarkerLayerForEditor(editor);
+    let lineCount = editor.getBuffer().getLineCount();
     if (editorMarkerLayer.isDestroyed()) return;
     editorMarkerLayer.clear();
     let cursorPosition = editor.getLastCursor().getBufferPosition();
@@ -353,6 +358,17 @@ export default class FindReferencesManager {
 
         rangeSet.add(key);
         filteredReferences.push(reference);
+      }
+
+      // Compare how many references we have to the number of buffer lines. If
+      // it's over a configurable quotient, then the language server may be
+      // giving us references for something really mundane, like `true` or
+      // `div`. This can be a performance issue (Pulsar seems not to like to
+      // have _lots_ of marker decorations) and it's also a sign that the
+      // references themselves won't be very helpful.
+      if (this.ignoreThreshold > 0 && (filteredReferences.length / lineCount) >= this.ignoreThreshold) {
+        this.updateScrollGutter(editor, []);
+        return;
       }
 
       for (let { range } of filteredReferences) {
