@@ -245,7 +245,10 @@ export default class FindReferencesManager {
     }
 
     return atom.workspace.open(
-      ReferencesView.URI,
+      // Vary the URL so that different reference lookups tend to use different
+      // views. We don't want to force everything to use the same view
+      // instance.
+      `${ReferencesView.URI}/${result.referencedSymbolName}`,
       {
         searchAllPanes: true,
         split: splitDirection
@@ -294,9 +297,7 @@ export default class FindReferencesManager {
     let position = cursor.getBufferPosition();
 
     let result = await provider.findReferences(mainEditor, position);
-
     if (!result) return;
-
     if (result.type === 'error') {
       console.error(`Error getting references: ${result?.message ?? 'null'}`);
       this.clearAllVisibleScrollGutters();
