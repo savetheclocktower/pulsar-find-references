@@ -13,7 +13,6 @@ export default class FindReferencesManager {
     private watchedEditors;
     private markerLayersForEditors;
     private scrollGuttersForEditors;
-    private enableScrollbarDecoration;
     private splitDirection;
     private enableEditorDecoration;
     private skipCurrentReference;
@@ -30,7 +29,7 @@ export default class FindReferencesManager {
     onCursorMove(_event?: CursorPositionChangedEvent): void;
     requestReferencesForPanel(): Promise<void>;
     showReferencesPanel(result: FindReferencesReturn): Promise<object> | undefined;
-    getReferencesForProject(editor: TextEditor): Promise<FindReferencesReturn | null>;
+    findReferencesForProject(editor: TextEditor): Promise<FindReferencesReturn | null>;
     requestReferencesUnderCursor(force?: boolean): Promise<void>;
     findReferencesForVisibleEditors(mainEditor: TextEditor, force?: boolean): Promise<void>;
     findReferences(event: CommandEvent<TextEditorElement>): Promise<void>;

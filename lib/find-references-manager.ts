@@ -39,13 +39,12 @@ export default class FindReferencesManager {
   private markerLayersForEditors: WeakMap<TextEditor, DisplayMarkerLayer> = new WeakMap();
   private scrollGuttersForEditors: WeakMap<TextEditor, ScrollGutter> = new WeakMap();
 
-  private enableScrollbarDecoration: boolean = true;
   private splitDirection: SplitDirection = 'none';
 
   private enableEditorDecoration: boolean = true;
   private skipCurrentReference: boolean = true;
   private ignoreThreshold: number = 0;
-  private cursorMoveDelay: number = 200;
+  private cursorMoveDelay: number = 400;
 
   private cursorMoveTimer?: NodeJS.Timeout | number;
   private typingTimer?: NodeJS.Timeout | number;
@@ -85,12 +84,6 @@ export default class FindReferencesManager {
         'pulsar-find-references.panel.splitDirection',
         (value: SplitDirection) => {
           this.splitDirection = value;
-        }
-      ),
-      atom.config.observe(
-        'pulsar-find-references.scrollbarDecoration.enable',
-        (value: boolean) => {
-          this.enableScrollbarDecoration = value;
         }
       ),
       atom.config.observe(
@@ -230,11 +223,15 @@ export default class FindReferencesManager {
   // FIND REFERENCES
 
   async requestReferencesForPanel() {
-    let editor = this.editor;
-    if (!editor) return;
+    if (!this.editor) return;
 
-    let references = await this.getReferencesForProject(editor);
-    if (!references) return;
+    let references = await this.findReferencesForProject(this.editor);
+    if (!references) {
+      // When we have no new references to show, we'll return early rather than
+      // clear the panel of results. No point in replacing the previous results
+      // with an empty list.
+      return;
+    }
     this.showReferencesPanel(references);
   }
 
@@ -261,21 +258,33 @@ export default class FindReferencesManager {
     );
   }
 
-  async getReferencesForProject(editor: TextEditor): Promise<FindReferencesReturn | null> {
+  async findReferencesForProject(editor: TextEditor): Promise<FindReferencesReturn | null> {
     let provider = this.providerRegistry.getFirstProviderForEditor(editor);
     if (!provider) return Promise.resolve(null);
 
     let position = this.getCursorPositionForEditor(editor);
     if (!position) return Promise.resolve(null);
 
-    return provider.findReferences(editor, position);
+    try {
+      return provider.findReferences(editor, position);
+    } catch (err) {
+      // Some providers return errors when they don't strictly need to. For
+      // instance, `gopls` will return an error if you ask it to resolve a
+      // reference at a whitespace position.
+      //
+      // Even though all this does is log an uncaught exception to the console,
+      // it's annoying… so instead we'll catch the error and log it ourselves
+      // via our `console` helper. This means it'll be hidden unless the user
+      // opts into debug logging.
+      console.error(`Error while retrieving references:`)
+      console.error(err)
+      return null
+    }
   }
 
   async requestReferencesUnderCursor(force: boolean = false) {
-    let editor = this.editor;
-    if (!editor) return;
-
-    return this.findReferencesForVisibleEditors(editor, force);
+    if (!this.editor) return;
+    return this.findReferencesForVisibleEditors(this.editor, force);
   }
 
   async findReferencesForVisibleEditors(mainEditor: TextEditor, force: boolean = false) {
@@ -449,11 +458,13 @@ export default class FindReferencesManager {
   }
 
   updateScrollGutter(editor: TextEditor, references: Reference[] | null) {
-    if (!this.enableScrollbarDecoration) return;
 
     let element = this.getOrCreateScrollGutterForEditor(editor);
     if (!element) return;
 
+    // We call this method even if scrollbar decoration is disabled; this is
+    // what allows us to clear existing references if the user just unchecked
+    // the “Enable” checkbox.
     element.highlightReferences(references);
   }
 
