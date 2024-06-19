@@ -5,7 +5,9 @@ import * as console from './console';
 import type { FindReferencesProvider } from './find-references.d';
 
 let manager: FindReferencesManager | undefined;
+
 let subscriptions: CompositeDisposable = new CompositeDisposable();
+
 const pendingProviders: FindReferencesProvider[] = [];
 
 export function activate() {

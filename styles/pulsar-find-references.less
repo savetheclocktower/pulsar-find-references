@@ -5,8 +5,7 @@
 @import "ui-variables";
 @import "syntax-variables";
 
-// css containment to improve performance
-// this means the css properties of the minimap does not affect other parts of Atom
+// CSS containment to improve performance.
 // https://drafts.csswg.org/css-contain/#propdef-contain
 @contain-all: size layout paint style;
 @contain-except-size: layout paint style;
@@ -31,7 +30,7 @@ pulsar-find-references-scroll-gutter {
   min-width: 16px;
   contain: @contain-all;
   display: block;
-  overflow: hidden;
+  overflow: clip;
   -webkit-user-select: none;
   cursor: default;
 

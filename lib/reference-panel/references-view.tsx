@@ -48,9 +48,6 @@ function matchesIgnoredNames(filePath: string, ignoredNames: Minimatch[]) {
   if (repositories.some(r => r.isPathIgnored(filePath))) return true;
   return ignoredNames.some(ig => {
     let result = ig.match(filePath);
-    // if (result) {
-    //   console.log('file', filePath, 'matches ignore pattern:', ig);
-    // }
     return result;
   });
 }
