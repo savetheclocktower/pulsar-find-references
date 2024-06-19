@@ -10,7 +10,7 @@ This package consumes the `find-references` service that is provided by many IDE
 
 ### Editor decoration
 
-By default, this package will highlight references in your editor **automatically** whenever your cursor moves around. You can configure the amount of time it waits before trying to highlight references (`200ms` by default) or you can disable this behavior altogether and explicitly invoke **Pulsar Find References: Highlight** whenever you want to highlight references.
+By default, this package will highlight references in your editor **automatically** whenever your cursor moves around. You can configure the amount of time it waits before trying to highlight references (`400ms` by default) or you can disable this behavior altogether and explicitly invoke **Pulsar Find References: Highlight** whenever you want to highlight references.
 
 The color of the highlight defaults to a mostly-transparent version of the color of plain text in your syntax theme. (This was the only practical option for a color that adapted to the color of your syntax theme.) If you want to change this color, customize your user stylesheet:
 
@@ -24,19 +24,13 @@ The color of the highlight defaults to a mostly-transparent version of the color
 
 This allows you to customize much more than the background color; you can eschew the default highlighting experience entirely in favor of outlining, underlining, or some other weird presentation.
 
-The references aren’t restricted to just the file you’re in; any other _visible_ text editors (e.g., active editors in different panes) will also have highlighting applied to their scrollbars.
-
-### References panel
-
-This package can also show you a project-wide list of references for a given symbol, whether or not those files are open: invoke the **Find References: Show Pane** command. The presentation is similar to that of a find-and-replace dialog’s results.
-
-Once the panel is open, it will update to show the most recent references. If you retain the default behavior, that means the results will change automatically as your cursor moves. To prevent this behavior, click the <kbd>Pin references</kbd> button at the top of the panel.
+The references aren’t restricted to just the file you’re in; any other _visible_ text editors (e.g., active editors in different panes) will also have highlighting applied.
 
 ### Scrollbar decoration
 
 This package also annotates the matches with markers in the scrollbar gutter. You can disable this behavior in the package settings, or else configure the color and opacity of the markers.
 
-When these annotations are present behind your scrollbar, the scrollbar itself will become slightly transparent to allow them to be seen. You can customize the opacity change in your `styles.less`:
+When these annotations are present behind your scrollbar, the scrollbar itself will become slightly transparent to allow them to be seen. You can customize the opacity change in your user stylesheet:
 
 ```less
 atom-text-editor[with-pulsar-find-references-scroll-gutter="active"] {
@@ -45,6 +39,12 @@ atom-text-editor[with-pulsar-find-references-scroll-gutter="active"] {
   }
 }
 ```
+
+### References panel
+
+This package can also show you a project-wide list of references for a given symbol, whether or not those files are open: invoke the **Find References: Show Panel** command. The presentation is similar to that of a find-and-replace dialog’s results.
+
+Once the panel is open, it will update to show the most recent references. If you retain the default behavior, that means the results will change automatically as your cursor moves. To prevent this behavior, click the <kbd>Pin references</kbd> button at the top of the panel.
 
 ## What are “references”?
 
