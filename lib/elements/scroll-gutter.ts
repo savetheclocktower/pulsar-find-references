@@ -7,14 +7,11 @@ import {
   TextEditorElement,
   TextEditorComponent,
 } from 'atom';
-import elementResizeDetectorFactory from 'element-resize-detector';
 import type { Reference } from 'atom-ide-base';
 import * as console from '../console';
 
 const MINIMUM_GUTTER_WIDTH = 15;
 const TAG_NAME = 'pulsar-find-references-scroll-gutter';
-
-const RESIZE_DETECTOR = elementResizeDetectorFactory({ strategy: 'scroll' });
 
 function last<T>(list: Array<T>) {
   return list[list.length - 1];
@@ -63,7 +60,15 @@ export default class ScrollGutter extends HTMLElement {
 
   constructor() {
     super();
-    this.resizeObserver ??= new ResizeObserver(_ => this.measureHeightAndWidth());
+    this.resizeObserver ??= new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        if (entry.target === this.scrollbar) {
+          this.measureHeightAndWidth(false, true);
+        } else if (entry.target === this) {
+          this.measureHeightAndWidth(false, false);
+        }
+      }
+    });
     if (this.created) return;
     this.initializeCanvas();
     this.created = true;
@@ -172,12 +177,13 @@ export default class ScrollGutter extends HTMLElement {
     }
 
     let measureDimensions = () => this.measureHeightAndWidth(false, false);
-    RESIZE_DETECTOR.listenTo(this, measureDimensions);
+
+    this.resizeObserver.observe(this);
     window.addEventListener('resize', measureDimensions, { passive: true });
 
     this.subscriptions.add(
       new Disposable(() => {
-        RESIZE_DETECTOR.removeListener(this, measureDimensions);
+        this.resizeObserver.unobserve(this);
       }),
       new Disposable(() => {
         window.removeEventListener('resize', measureDimensions);
@@ -229,7 +235,7 @@ export default class ScrollGutter extends HTMLElement {
       // way. We can still enforce a minimum width for the gutter view.
       //
       // TODO: Make this configurable?
-      this.width =  Math.max(barRect.width, MINIMUM_GUTTER_WIDTH);
+      this.width = Math.max(barRect.width, MINIMUM_GUTTER_WIDTH);
       console.debug(this.editor?.id, 'actual scrollbar width:', barRect.width);
       console.debug(this.editor?.id, 'Measuring width and height as:', this.width, this.height);
     }
