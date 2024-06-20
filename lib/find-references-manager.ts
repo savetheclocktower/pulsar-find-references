@@ -310,31 +310,36 @@ export default class FindReferencesManager {
     let [cursor] = cursors;
     let position = cursor.getBufferPosition();
 
-    let result = await provider.findReferences(mainEditor, position);
-    if (!result) return;
-    if (result.type === 'error') {
-      console.error(`Error getting references: ${result?.message ?? 'null'}`);
-      this.clearAllVisibleScrollGutters();
-      return;
-    }
-
-    console.debug('REFERENCES:', result.references);
-    ReferencesView.setReferences(result.references, result.referencedSymbolName);
-
-    for (let reference of result.references) {
-      let { uri } = reference;
-      if (!referenceMap.has(uri)) {
-        referenceMap.set(uri, []);
+    try {
+      let result = await provider.findReferences(mainEditor, position);
+      if (!result) return;
+      if (result.type === 'error') {
+        console.error(`Error getting references: ${result?.message ?? 'null'}`);
+        this.clearAllVisibleScrollGutters();
+        return;
       }
-      referenceMap.get(uri).push(reference);
-    }
 
-    for (let path of editorMap.keys()) {
-      let editors = editorMap.get(path);
-      let references = referenceMap.get(path);
-      for (let editor of editors) {
-        this.highlightReferences(editor, references ?? [], force);
+      console.debug('REFERENCES:', result.references);
+      ReferencesView.setReferences(result.references, result.referencedSymbolName);
+
+      for (let reference of result.references) {
+        let { uri } = reference;
+        if (!referenceMap.has(uri)) {
+          referenceMap.set(uri, []);
+        }
+        referenceMap.get(uri).push(reference);
       }
+
+      for (let path of editorMap.keys()) {
+        let editors = editorMap.get(path);
+        let references = referenceMap.get(path);
+        for (let editor of editors) {
+          this.highlightReferences(editor, references ?? [], force);
+        }
+      }
+    } catch (err) {
+      console.error(`Error retrieving references:`)
+      console.error(err)
     }
   }
 
