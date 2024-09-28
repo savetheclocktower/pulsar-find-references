@@ -220,8 +220,15 @@ export default class ScrollGutter extends HTMLElement {
     let wasResized = this.width !== this.clientWidth || this.height !== this.clientHeight;
 
     if (!this.scrollbar || !this.scrollbar.parentNode) {
-      console.log('Reattaching to scrollbar!');
-      this.attachToScrollbar();
+      console.debug('Reattaching to scrollbar');
+      try {
+        this.attachToScrollbar();
+      } catch (err) {
+        console.debug('Error when attaching; bailing early');
+        // Error thrown; the environment is probably reloading, so let's just
+        // give up early.
+        return;
+      }
     }
 
     if (!this.scrollbar || !this.scrollView) {
@@ -262,7 +269,7 @@ export default class ScrollGutter extends HTMLElement {
   }
 
   update() {
-    console.debug('Element update!');
+    console.debug('Scroll gutter update');
     if (!this.visible) {
       this.style.visibility = 'hidden';
       return;
@@ -394,7 +401,7 @@ export default class ScrollGutter extends HTMLElement {
     }
 
     if (!this.isVisible()) {
-      console.log('Failed sanity check! Recomputing dimensions…');
+      console.debug('Failed sanity check; recomputing dimensions…');
       this.measureHeightAndWidth();
     }
 
@@ -408,7 +415,7 @@ export default class ScrollGutter extends HTMLElement {
         }
       }
     );
-    console.warn('firing event!');
+    console.debug('Firing visibility-changed event:', event);
     this.dispatchEvent(event);
   }
 

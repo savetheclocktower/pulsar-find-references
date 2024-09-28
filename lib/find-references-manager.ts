@@ -3,6 +3,7 @@ import {
   DisplayMarkerLayer,
   Disposable,
   Point,
+  Range,
   TextEditor,
   TextEditorElement,
   CommandEvent,
@@ -256,6 +257,36 @@ export default class FindReferencesManager {
         split: splitDirection
       }
     );
+  }
+
+  async showReferencesForEditorAtPoint (editor: TextEditor, pointOrRange: Point | Range) {
+    let references = await this.findReferencesForEditorAtPoint(editor, pointOrRange);
+    if (references === null) return;
+
+    this.showReferencesPanel(references);
+  }
+
+  async findReferencesForEditorAtPoint(editor: TextEditor, pointOrRange: Point | Range) {
+    let provider = this.providerRegistry.getFirstProviderForEditor(editor);
+    if (!provider) return Promise.resolve(null);
+
+    let point = pointOrRange instanceof Range ? pointOrRange.start : pointOrRange;
+
+    try {
+      return provider.findReferences(editor, point);
+    } catch (err) {
+      // Some providers return errors when they don't strictly need to. For
+      // instance, `gopls` will return an error if you ask it to resolve a
+      // reference at a whitespace position.
+      //
+      // Even though all this does is log an uncaught exception to the console,
+      // it's annoying… so instead we'll catch the error and log it ourselves
+      // via our `console` helper. This means it'll be hidden unless the user
+      // opts into debug logging.
+      console.error(`Error while retrieving references:`)
+      console.error(err)
+      return null
+    }
   }
 
   async findReferencesForProject(editor: TextEditor): Promise<FindReferencesReturn | null> {

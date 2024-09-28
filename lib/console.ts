@@ -6,7 +6,6 @@ let isEnabled = false;
 atom.config.observe(
   'pulsar-find-references.advanced.enableDebugLogging',
   (value) => {
-    console.warn('enableDebugLogging?', value);
     isEnabled = value;
   }
 );

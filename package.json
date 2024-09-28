@@ -23,6 +23,14 @@
       }
     }
   },
+  "providedServices": {
+    "show-references": {
+      "description": "Show a list of project references for a given buffer position or range.",
+      "versions": {
+        "0.1.0": "provideShowReferences"
+      }
+    }
+  },
   "configSchema": {
     "editorDecoration": {
       "order": 1,

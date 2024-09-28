@@ -1,4 +1,4 @@
-import { DisplayMarkerLayer, Disposable, Point, TextEditor, TextEditorElement, CommandEvent, CursorPositionChangedEvent } from 'atom';
+import { DisplayMarkerLayer, Disposable, Point, Range, TextEditor, TextEditorElement, CommandEvent, CursorPositionChangedEvent } from 'atom';
 import type { FindReferencesProvider } from './find-references.d';
 import type { FindReferencesReturn, Reference } from 'atom-ide-base';
 import ProviderRegistry from './provider-registry';
@@ -29,6 +29,8 @@ export default class FindReferencesManager {
     onCursorMove(_event?: CursorPositionChangedEvent): void;
     requestReferencesForPanel(): Promise<void>;
     showReferencesPanel(result: FindReferencesReturn): Promise<object> | undefined;
+    showReferencesForEditorAtPoint(editor: TextEditor, pointOrRange: Point | Range): Promise<void>;
+    findReferencesForEditorAtPoint(editor: TextEditor, pointOrRange: Point | Range): Promise<FindReferencesReturn | null>;
     findReferencesForProject(editor: TextEditor): Promise<FindReferencesReturn | null>;
     requestReferencesUnderCursor(force?: boolean): Promise<void>;
     findReferencesForVisibleEditors(mainEditor: TextEditor, force?: boolean): Promise<void>;
