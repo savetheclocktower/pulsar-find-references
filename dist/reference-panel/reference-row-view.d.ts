@@ -1,3 +1,4 @@
+import { TextBuffer } from 'atom';
 import etch from 'etch';
 import type { Reference } from 'atom-ide-base';
 type ReferenceRowViewProperties = {
@@ -6,6 +7,7 @@ type ReferenceRowViewProperties = {
     isSelected?: boolean;
     activeNavigationIndex?: number;
     navigationIndex: number;
+    bufferCache?: Map<string, TextBuffer>;
 };
 export default class ReferenceRowView {
     relativePath: string;
@@ -19,6 +21,8 @@ export default class ReferenceRowView {
     protected activeNavigationIndex: number;
     private buffer?;
     private textLine?;
+    private textLineParts?;
+    private bufferCache?;
     constructor(props: ReferenceRowViewProperties);
     destroy(): Promise<void>;
     getLineForReference(): Promise<string>;

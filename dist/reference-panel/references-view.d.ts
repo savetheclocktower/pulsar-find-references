@@ -1,31 +1,49 @@
+import { DisplayMarker, TextBuffer, TextEditor } from 'atom';
 import etch from 'etch';
 import type { Reference } from 'atom-ide-base';
+import FindReferencesManager from '../find-references-manager';
 type SplitDirection = 'left' | 'right' | 'up' | 'down' | 'none';
-type ReferencesViewProperties = {
-    ref?: string;
+type ReferencesViewContext = {
+    manager: FindReferencesManager;
+    editor: TextEditor;
+    marker: DisplayMarker;
     references: Reference[];
     symbolName: string;
 };
+type ReferencesViewProperties = {
+    ref?: string;
+} & ReferencesViewContext;
 export default class ReferencesView {
     static URI: string;
-    static instances: Set<ReferencesView>;
-    static setReferences(references: Reference[], symbolName: string): void;
+    static CONTEXTS: Map<string, ReferencesViewContext>;
+    static instances: Map<string, ReferencesView>;
+    static nextUri(): string;
+    static setReferences(uri: string, context: ReferencesViewContext): void;
+    uri: string;
+    overridable: boolean;
     private subscriptions;
     private references;
     private symbolName;
+    private editor;
+    private marker;
+    private manager;
     private ignoredNameMatchers;
     private splitDirection;
+    private emitter;
     private filteredAndGroupedReferences;
+    private uris;
     private activeNavigationIndex;
     private lastNavigationIndex;
+    private bufferCache;
+    private indexToReferenceMap;
     private collapsedIndices;
-    private pinned;
     private previewStyle;
     element: HTMLElement;
     refs: {
         [key: string]: HTMLElement;
     };
-    constructor();
+    constructor(uri: string, props?: ReferencesViewContext);
+    onDidChangeTitle(callback: () => void): import("atom").Disposable;
     moveUp(): void;
     moveDown(): void;
     findVisibleNavigationIndex(delta: number): number | null;
@@ -41,23 +59,32 @@ export default class ReferencesView {
     pageDown(): void;
     moveToTop(): void;
     moveToBottom(): void;
+    ensureSelectedItemInView(): void;
     confirmResult(): void;
     copyResult(): void;
     copyPath(): void;
-    openInNewTab(): void;
+    openInNewTab(): Promise<void>;
     getElementAtIndex(index: number): HTMLElement | null;
     get activeElement(): HTMLElement | null;
-    update({ references, symbolName }: ReferencesViewProperties): Promise<void>;
+    update({ references, symbolName, editor, marker, manager }: Partial<ReferencesViewProperties>): Promise<void>;
     destroy(): void;
+    close(): void;
+    referencesIncludeBuffer(buffer: TextBuffer): boolean;
     fontFamilyChanged(fontFamily: string): void;
     ignoredNamesChanged(ignoredNames: string[]): void;
     splitDirectionChanged(splitDirection: SplitDirection): void;
+    getMetadataForTarget(target: HTMLElement): {
+        filePath: string;
+        lineNumber: number;
+        rangeSpec: string;
+    } | null;
     handleClick(event: MouseEvent): void;
     activate(): Promise<void>;
     handlePinReferencesClicked(): void;
     openResult(filePath: string, row: number, rangeSpec: string, { pending }?: {
         pending: boolean;
     }): Promise<void>;
+    revealReferenceInEditor(filePath: string, row: number, rangeSpec: string, editor: TextEditor): void;
     filterAndGroupReferences(): Map<string, Reference[]>;
     get props(): ReferencesViewProperties;
     writeAfterUpdate(): void;
@@ -66,6 +93,8 @@ export default class ReferencesView {
     getIconName(): string;
     getURI(): string;
     focus(): void;
+    buildBufferCache(): Promise<Map<string, TextBuffer>>;
+    refreshPanel(): Promise<void>;
     render(): etch.EtchJSXElement;
 }
 export {};

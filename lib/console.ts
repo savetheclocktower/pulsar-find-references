@@ -10,7 +10,6 @@ atom.config.observe(
   }
 );
 
-
 export function log(...args: any) {
   if (!isEnabled) return;
   return console.log(TAG, ...args);

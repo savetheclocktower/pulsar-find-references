@@ -1,7 +1,8 @@
-import { DisplayMarkerLayer, Disposable, Point, Range, TextEditor, TextEditorElement, CommandEvent, CursorPositionChangedEvent } from 'atom';
+import { DisplayMarkerLayer, Disposable, Point, Range, TextEditor, TextEditorElement, CommandEvent, CursorPositionChangedEvent, DisplayMarker } from 'atom';
 import type { FindReferencesProvider } from './find-references.d';
 import type { FindReferencesReturn, Reference } from 'atom-ide-base';
 import ProviderRegistry from './provider-registry';
+import ReferencesView from './reference-panel/references-view';
 import { default as ScrollGutter, ScrollGutterVisibilityEvent } from './elements/scroll-gutter';
 export default class FindReferencesManager {
     editor: TextEditor | null;
@@ -28,10 +29,17 @@ export default class FindReferencesManager {
     updateCurrentEditor(editor: TextEditor | null): void;
     onCursorMove(_event?: CursorPositionChangedEvent): void;
     requestReferencesForPanel(): Promise<void>;
-    showReferencesPanel(result: FindReferencesReturn): Promise<object> | undefined;
+    trackPosition(position: Point): DisplayMarker | undefined;
+    findReferencesPanelToReuse(): ReferencesView | undefined;
+    showReferencesPanel({ result, editor, marker }: {
+        result: FindReferencesReturn;
+        editor: TextEditor;
+        marker: DisplayMarker;
+    }): Promise<object> | undefined;
     showReferencesForEditorAtPoint(editor: TextEditor, pointOrRange: Point | Range): Promise<void>;
     findReferencesForEditorAtPoint(editor: TextEditor, pointOrRange: Point | Range): Promise<FindReferencesReturn | null>;
     findReferencesForProject(editor: TextEditor): Promise<FindReferencesReturn | null>;
+    findReferencesForProjectAtPosition(editor: TextEditor, position: Point): Promise<FindReferencesReturn | null>;
     requestReferencesUnderCursor(force?: boolean): Promise<void>;
     findReferencesForVisibleEditors(mainEditor: TextEditor, force?: boolean): Promise<void>;
     findReferences(event: CommandEvent<TextEditorElement>): Promise<void>;

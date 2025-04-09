@@ -5,13 +5,16 @@ import Path from 'path';
 import ReferenceRowView from './reference-row-view';
 import getIconServices from '../get-icon-services';
 import * as console from '../console';
+import { TextBuffer } from 'atom';
 
 type ReferenceGroupViewProperties = {
   relativePath: string,
   references: Reference[],
   navigationIndex: number,
   activeNavigationIndex?: number,
-  isCollapsed?: boolean
+  isCollapsed?: boolean,
+  indexToReferenceMap: Map<number, Reference>
+  bufferCache: Map<string, TextBuffer>
 };
 
 export default class ReferenceGroupView {
@@ -25,13 +28,18 @@ export default class ReferenceGroupView {
   public element!: HTMLElement;
   public refs!: { [key: string]: HTMLElement };
 
+  private bufferCache: Map<string, TextBuffer>;
+  private indexToReferenceMap: Map<number, Reference>;
+
   constructor(props: ReferenceGroupViewProperties) {
     let {
       relativePath,
       references,
       navigationIndex,
       activeNavigationIndex = -1,
-      isCollapsed = false
+      isCollapsed = false,
+      indexToReferenceMap,
+      bufferCache
     } = props;
     console.debug('ReferenceGroupView constructor:', props);
     this.relativePath = relativePath;
@@ -39,6 +47,8 @@ export default class ReferenceGroupView {
     this.isCollapsed = isCollapsed;
     this.navigationIndex = navigationIndex;
     this.activeNavigationIndex = activeNavigationIndex;
+    this.indexToReferenceMap = indexToReferenceMap;
+    this.bufferCache = bufferCache;
 
     etch.initialize(this);
     this.iconServices.updateIcon(this, this.relativePath);
@@ -53,7 +63,9 @@ export default class ReferenceGroupView {
     references,
     navigationIndex,
     activeNavigationIndex = -1,
-    isCollapsed = false
+    isCollapsed = false,
+    indexToReferenceMap,
+    bufferCache
   }: ReferenceGroupViewProperties) {
     let changed = false;
     if (this.relativePath !== relativePath) {
@@ -76,6 +88,14 @@ export default class ReferenceGroupView {
       this.activeNavigationIndex = activeNavigationIndex;
       changed = true;
     }
+    if (this.bufferCache !== bufferCache) {
+      this.bufferCache = bufferCache;
+      changed = true;
+    }
+    if (this.indexToReferenceMap !== indexToReferenceMap) {
+      this.indexToReferenceMap = indexToReferenceMap;
+      changed = true;
+    }
     return changed ? etch.update(this) : Promise.resolve();
   }
 
@@ -89,7 +109,9 @@ export default class ReferenceGroupView {
       references: this.references,
       isCollapsed: this.isCollapsed,
       navigationIndex: this.navigationIndex,
-      activeNavigationIndex: this.activeNavigationIndex
+      activeNavigationIndex: this.activeNavigationIndex,
+      indexToReferenceMap: this.indexToReferenceMap,
+      bufferCache: this.bufferCache
     };
   }
 
@@ -107,18 +129,22 @@ export default class ReferenceGroupView {
 
     let referenceRows = this.references.map((ref, i) => {
       let currentNavigationIndex = this.navigationIndex + i + 1;
+      this.indexToReferenceMap.set(currentNavigationIndex, ref);
       return (
         <ReferenceRowView
           reference={ref}
           relativePath={this.relativePath}
           isSelected={currentNavigationIndex === this.activeNavigationIndex}
           navigationIndex={currentNavigationIndex}
+          bufferCache={this.bufferCache}
           activeNavigationIndex={this.activeNavigationIndex}
         />
       );
     });
 
-    let listClassNames = cx('list-tree', { 'hidden': this.isCollapsed });
+    let listClassNames = cx('list-tree', {
+      'hidden': this.isCollapsed
+    });
 
     return (
       <li className={classNames}>

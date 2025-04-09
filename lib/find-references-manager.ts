@@ -7,7 +7,8 @@ import {
   TextEditor,
   TextEditorElement,
   CommandEvent,
-  CursorPositionChangedEvent
+  CursorPositionChangedEvent,
+  DisplayMarker
 } from 'atom';
 import type { FindReferencesProvider } from './find-references.d';
 import type { FindReferencesReturn, Reference } from 'atom-ide-base';
@@ -61,10 +62,10 @@ export default class FindReferencesManager {
       this.providerRegistry.addProvider(provider);
     }
 
-    atom.workspace.addOpener(filePath => {
-      if (filePath.indexOf(ReferencesView.URI) !== -1)
-        return new ReferencesView();
-
+    atom.workspace.addOpener(uri => {
+      if (uri.indexOf(ReferencesView.URI) !== -1) {
+        return new ReferencesView(uri);
+      }
       return;
     });
 
@@ -226,22 +227,79 @@ export default class FindReferencesManager {
   async requestReferencesForPanel() {
     if (!this.editor) return;
 
-    let references = await this.findReferencesForProject(this.editor);
-    if (!references) {
+    let position = this.getCursorPositionForEditor(this.editor);
+    if (!position) return;
+
+    let positionMarker = this.trackPosition(position);
+    if (!positionMarker) {
+      console.error(`Could not create marker for position: ${position}`);
+      return;
+    }
+
+    let result = await this.findReferencesForProject(this.editor);
+    if (!result) {
       // When we have no new references to show, we'll return early rather than
       // clear the panel of results. No point in replacing the previous results
       // with an empty list.
       return;
     }
-    this.showReferencesPanel(references);
+    this.showReferencesPanel({
+      result,
+      editor: this.editor,
+      marker: positionMarker
+    });
   }
 
-  showReferencesPanel(result: FindReferencesReturn) {
+  trackPosition(position: Point) {
+    if (!this.editor) return;
+    let range = new Range(position, position);
+    return this.editor.markBufferRange(range, { invalidate: 'surround' });
+  }
+
+  findReferencesPanelToReuse() {
+    let paneItem = atom.workspace.getPaneItems().find((pe) => {
+      return pe instanceof ReferencesView && pe.overridable;
+    });
+    return paneItem ? paneItem as ReferencesView : undefined;
+  }
+
+  showReferencesPanel({
+    result,
+    editor,
+    marker
+  }: { result: FindReferencesReturn, editor: TextEditor, marker: DisplayMarker }) {
     if (result.type !== 'data') return;
 
-    // HACK
-    ReferencesView.setReferences(result.references, result.referencedSymbolName);
+    let panelToReuse = this.findReferencesPanelToReuse();
 
+    let uri = panelToReuse ? panelToReuse.uri : ReferencesView.nextUri();
+
+    // The view doesn't exist yet, so store some context values that it can use
+    // later when it instantiates.
+    ReferencesView.setReferences(
+      uri,
+      {
+        manager: this,
+        editor,
+        marker,
+        references: result.references,
+        symbolName: result.referencedSymbolName
+      }
+    );
+
+    // If we're reusing an existing panel, we're done; it'll pick up on our
+    // changes and re-render.
+    if (panelToReuse) {
+      // Ensure it's brought to the front.
+      let pane = atom.workspace.paneForItem(panelToReuse);
+      if (!pane) {
+        throw new Error(`No pane for panel with URI: ${uri}`);
+      }
+      pane.activateItem(panelToReuse);
+      return;
+    }
+
+    // Otherwise we'll have to create a new panel ourselves.
     let splitDirection = this.splitDirection === 'none' ? undefined : this.splitDirection;
     if (this.splitDirection === undefined) {
       splitDirection = 'right';
@@ -251,7 +309,7 @@ export default class FindReferencesManager {
       // Vary the URL so that different reference lookups tend to use different
       // views. We don't want to force everything to use the same view
       // instance.
-      `${ReferencesView.URI}/${result.referencedSymbolName}`,
+      uri,
       {
         searchAllPanes: true,
         split: splitDirection
@@ -260,10 +318,18 @@ export default class FindReferencesManager {
   }
 
   async showReferencesForEditorAtPoint (editor: TextEditor, pointOrRange: Point | Range) {
-    let references = await this.findReferencesForEditorAtPoint(editor, pointOrRange);
-    if (references === null) return;
+    let result = await this.findReferencesForEditorAtPoint(editor, pointOrRange);
+    if (result === null) return;
+    if (result.type === 'error') return;
+    let marker = editor.markBufferRange(
+      pointOrRange instanceof Range ? pointOrRange : new Range(pointOrRange, pointOrRange)
+    )
 
-    this.showReferencesPanel(references);
+    this.showReferencesPanel({
+      editor,
+      marker,
+      result
+    });
   }
 
   async findReferencesForEditorAtPoint(editor: TextEditor, pointOrRange: Point | Range) {
@@ -290,11 +356,15 @@ export default class FindReferencesManager {
   }
 
   async findReferencesForProject(editor: TextEditor): Promise<FindReferencesReturn | null> {
-    let provider = this.providerRegistry.getFirstProviderForEditor(editor);
-    if (!provider) return Promise.resolve(null);
-
     let position = this.getCursorPositionForEditor(editor);
     if (!position) return Promise.resolve(null);
+
+    return this.findReferencesForProjectAtPosition(editor, position);
+  }
+
+  async findReferencesForProjectAtPosition(editor: TextEditor, position: Point): Promise<FindReferencesReturn | null> {
+    let provider = this.providerRegistry.getFirstProviderForEditor(editor);
+    if (!provider) return Promise.resolve(null);
 
     try {
       return provider.findReferences(editor, position);
@@ -350,10 +420,7 @@ export default class FindReferencesManager {
         return;
       }
 
-      console.debug('REFERENCES:', result.references);
-      ReferencesView.setReferences(result.references, result.referencedSymbolName);
-
-      for (let reference of result.references) {
+       for (let reference of result.references) {
         let { uri } = reference;
         if (!referenceMap.has(uri)) {
           referenceMap.set(uri, []);

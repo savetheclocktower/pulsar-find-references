@@ -2,7 +2,10 @@ import { CompositeDisposable, TextEditor } from 'atom';
 import FindReferencesManager from './find-references-manager';
 import * as console from './console';
 
-import type { FindReferencesProvider, ShowReferencesProvider } from './find-references.d';
+import type {
+  FindReferencesProvider,
+  ShowReferencesProvider
+} from './find-references.d';
 
 let manager: FindReferencesManager | undefined;
 
@@ -27,12 +30,9 @@ export function findFirstTextEditorForPath(path: string): TextEditor | undefined
   return undefined
 }
 
-
 export function activate() {
   manager ??= new FindReferencesManager();
-
   subscriptions.add(manager);
-
   try {
     manager!.initialize(pendingProviders);
   } catch (err) {
@@ -55,7 +55,7 @@ export function consumeFindReferences(provider: FindReferencesProvider) {
 // Experimental: An API that can be consumed by other packages to trigger the
 // display of a “show references” panel for an arbitrary point or range in an
 // arbitrary buffer.
-export function provideShowReferences (): ShowReferencesProvider {
+export function provideShowReferences(): ShowReferencesProvider {
   return {
     showReferencesForEditor: (editor, pointOrRange) => {
       if (!manager) return;

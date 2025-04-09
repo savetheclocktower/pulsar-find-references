@@ -44,7 +44,17 @@ atom-text-editor[with-pulsar-find-references-scroll-gutter="active"] {
 
 This package can also show you a project-wide list of references for a given symbol, whether or not those files are open: invoke the **Find References: Show Panel** command. The presentation is similar to that of a find-and-replace dialog’s results.
 
-Once the panel is open, it will update to show the most recent references. If you retain the default behavior, that means the results will change automatically as your cursor moves. To prevent this behavior, click the <kbd>Pin references</kbd> button at the top of the panel.
+The panel offers a live-updating list of references to the symbol that was under your cursor when you invoked **Find References: Show Panel**. If you make changes to the document, the list will update.
+
+#### Overrides
+
+If you invoke **Find References: Show Panel** multiple times at different cursor positions, the package will attempt to reuse existing results panels, much like `find-and-replace` does. If you want to keep a certain panel, you can prevent it from being “overridden” by clicking the <kbd>Don’t override</kbd> button. You can therefore keep multiple lists of references at once and have them update as you make changes.
+
+When the package wants to show a new results panel, it searches for an existing panel to reuse, stopping when it finds one that is overridable. If it doesn’t find any, it creates a new one. Its behavior upon creating a new panel — whether to split the active pane when showing results, and the direction of the split — is governed by the _Results Panel > Direction to Open Results Pane_ package setting.
+
+#### Panel behavior
+
+To give the user a list of references, language servers need to know a specific cursor position. For this reason, the package keeps track of the original cursor position from which a given results panel was triggered and tracks its logical movement over time. It adapts when content is added above or below the position, but if a buffer change surrounds the position, the panel will automatically close.
 
 ## What are “references”?
 

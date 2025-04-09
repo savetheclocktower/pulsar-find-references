@@ -13,6 +13,7 @@ type ReferenceRowViewProperties = {
   isSelected?: boolean,
   activeNavigationIndex?: number
   navigationIndex: number,
+  bufferCache?: Map<string, TextBuffer>
 };
 
 export default class ReferenceRowView {
@@ -28,6 +29,8 @@ export default class ReferenceRowView {
 
   private buffer?: TextBuffer;
   private textLine?: string;
+  private textLineParts?: [string, string, string]
+  private bufferCache?: Map<string, TextBuffer>;
 
   constructor(props: ReferenceRowViewProperties) {
     let {
@@ -35,7 +38,8 @@ export default class ReferenceRowView {
       reference,
       navigationIndex,
       activeNavigationIndex = -1,
-      isSelected = false
+      isSelected = false,
+      bufferCache
     } = props;
     console.debug('ReferenceRowView constructor:', props);
     this.relativePath = relativePath;
@@ -43,6 +47,7 @@ export default class ReferenceRowView {
     this.isSelected = isSelected;
     this.navigationIndex = navigationIndex;
     this.activeNavigationIndex = activeNavigationIndex;
+    this.bufferCache = bufferCache;
 
     etch.initialize(this);
     this.getLineForReference().then(() => etch.update(this));
@@ -55,7 +60,21 @@ export default class ReferenceRowView {
   async getLineForReference() {
     if (this.textLine) return this.textLine;
 
-    this.buffer ??= await TextBuffer.load(this.reference.uri);
+    // The language server’s results are positioned according to the current
+    // state of the project — including what may be any number of unsaved
+    // buffers that have local changes.
+    //
+    // For this reason, we must reuse a buffer in the workspace if it exists
+    // before giving up and loading from disk.
+    if (!this.buffer) {
+      this.buffer = this.bufferCache?.get(this.reference.uri) ??
+        await TextBuffer.load(this.reference.uri);
+    }
+    if (!this.buffer) {
+      throw new Error('No buffer')
+    }
+
+    let textLineParts: [string, string, string] | undefined = undefined;
     let { range } = this.reference;
     let row = range.start.row;
     let from = null, to = null;
@@ -67,9 +86,10 @@ export default class ReferenceRowView {
       let after = line.substring(to);
       let middle = line.substring(from, to);
 
-      line = `${before}<span class="match highlight-info">${middle}</span>${after}`;
+      textLineParts = [before, middle, after];
     }
 
+    this.textLineParts = textLineParts;
     this.textLine = line;
     return line;
   }
@@ -77,7 +97,7 @@ export default class ReferenceRowView {
   async update(newProps: Partial<ReferenceRowViewProperties>) {
     let props = { ...this.props, ...newProps };
 
-    let { relativePath, reference, isSelected = false } = props;
+    let { relativePath, reference, isSelected = false, bufferCache } = props;
     let changed = false;
 
     if (this.relativePath !== relativePath) {
@@ -89,6 +109,12 @@ export default class ReferenceRowView {
       this.buffer = undefined;
       this.textLine = undefined;
       this.reference = reference;
+      await this.getLineForReference();
+      changed = true;
+    }
+
+    if (this.bufferCache !== bufferCache) {
+      this.bufferCache = bufferCache;
       await this.getLineForReference();
       changed = true;
     }
@@ -107,7 +133,8 @@ export default class ReferenceRowView {
       reference: this.reference,
       isSelected: this.isSelected,
       navigationIndex: this.navigationIndex,
-      activeNavigationIndex: this.activeNavigationIndex
+      activeNavigationIndex: this.activeNavigationIndex,
+      bufferCache: this.bufferCache
     };
   }
 
@@ -135,6 +162,7 @@ export default class ReferenceRowView {
         'selected': this.isSelected
       }
     );
+    let [before, middle, after] = this.textLineParts ?? ['', '', ''];
     return (
       <li className={classNames} dataset={{
         navigationIndex: String(this.navigationIndex),
@@ -143,7 +171,9 @@ export default class ReferenceRowView {
         range: this.reference.range.toString()
       }}>
         <span className="line-number">{this.lineNumber}</span>
-        <span className="preview" innerHTML={this.textLine} />
+        <span className="preview">
+          {before}<span className="match highlight-info">{middle}</span>{after}
+        </span>
       </li>
     );
   }
