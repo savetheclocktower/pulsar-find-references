@@ -204,6 +204,8 @@ export default class FindReferencesManager {
       this.cursorMoveTimer === undefined;
     }
 
+    // Any existing highlights get cleared when the cursor moves, no matter
+    // what.
     if (this.editor) {
       let layer = this.getOrCreateMarkerLayerForEditor(this.editor);
       layer.clear();
@@ -212,8 +214,17 @@ export default class FindReferencesManager {
     if (this.isTyping) {
       console.log('User is typing, so wait longer than usual…');
     }
+
+    if (!this.enableEditorDecoration) {
+      if (this.editor) {
+        this.updateScrollGutter(this.editor, null);
+      }
+      return;
+    }
+
     this.cursorMoveTimer = setTimeout(
       async () => {
+        if (!this.enableEditorDecoration) return;
         await this.requestReferencesUnderCursor();
       },
       // When the user is typing, wait at least as long as the typing delay
@@ -561,7 +572,6 @@ export default class FindReferencesManager {
   }
 
   updateScrollGutter(editor: TextEditor, references: Reference[] | null) {
-
     let element = this.getOrCreateScrollGutterForEditor(editor);
     if (!element) return;
 

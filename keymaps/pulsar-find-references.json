@@ -1,6 +1,6 @@
 {
   "atom-workspace": {
-    "ctrl-shift": "pulsar-find-references:show",
+    "ctrl-shift": "pulsar-find-references:highlight",
     "ctrl-alt-cmd-f": "pulsar-find-references:show-panel"
   }
 }

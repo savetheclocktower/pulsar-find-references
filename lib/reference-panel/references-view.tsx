@@ -70,10 +70,10 @@ type ReferencesViewContext = {
   editor: TextEditor,
   marker: DisplayMarker,
   references: Reference[],
-  symbolName: string
-}
+  symbolName: string;
+};
 
-type ReferencesViewProperties = { ref?: string } & ReferencesViewContext;
+type ReferencesViewProperties = { ref?: string; } & ReferencesViewContext;
 
 function getOppositeSplit(split: SplitDirection): FormalSplitDirection {
   return {
@@ -98,7 +98,7 @@ export default class ReferencesView {
   // Instances of `ReferencesView`.
   static instances: Map<string, ReferencesView> = new Map();
 
-  static nextUri () {
+  static nextUri() {
     return `${ReferencesView.URI}/${panelId++}`;
   }
 
@@ -151,21 +151,21 @@ export default class ReferencesView {
   // Keeps track of which result groups are collapsed.
   private collapsedIndices: Set<number> = new Set();
 
-  private previewStyle: { fontFamily: string } = { fontFamily: '' };
+  private previewStyle: { fontFamily: string; } = { fontFamily: '' };
 
   public element!: HTMLElement;
-  public refs!: { [key: string]: HTMLElement };
+  public refs!: { [key: string]: HTMLElement; };
 
   constructor(uri: string, props?: ReferencesViewContext) {
     ReferencesView.instances.set(uri, this);
     this.uri = uri;
-    let context: ReferencesViewContext
+    let context: ReferencesViewContext;
     if (props) {
       context = props;
     } else if (ReferencesView.CONTEXTS.has(uri)) {
-      context = ReferencesView.CONTEXTS.get(uri)!
+      context = ReferencesView.CONTEXTS.get(uri)!;
     } else {
-      throw new Error(`Expected context data for URI: ${uri}`)
+      throw new Error(`Expected context data for URI: ${uri}`);
     }
 
     let { references, symbolName, editor, marker, manager } = context;
@@ -201,7 +201,7 @@ export default class ReferencesView {
           if (this.referencesIncludeBuffer(editor.getBuffer())) {
             this.refreshPanel();
           }
-        })
+        });
       }),
 
       // If the marker is destroyed or made invalid, it means a buffer change
@@ -246,14 +246,14 @@ export default class ReferencesView {
 
     this.buildBufferCache()
       .then((cache) => {
-        this.bufferCache = cache
+        this.bufferCache = cache;
         return etch.update(this);
       });
   }
 
   // Pane items that provide `onDidChangeTitle` can trigger updates to their
   // tab and window titles.
-  onDidChangeTitle (callback: () => void) {
+  onDidChangeTitle(callback: () => void) {
     return this.emitter.on('did-change-title', callback);
   }
 
@@ -462,7 +462,7 @@ export default class ReferencesView {
     this.revealReferenceInEditor(filePath, row, rangeSpec, editor);
   }
 
-  getElementAtIndex(index: number): HTMLElement | null  {
+  getElementAtIndex(index: number): HTMLElement | null {
     let element = this.element.querySelector(`[data-navigation-index="${index}"]`);
     return element ? (element as HTMLElement) : null;
   }
@@ -520,10 +520,10 @@ export default class ReferencesView {
 
   // Given a buffer, returns whether the buffer's file path matches any of the
   // current references.
-  referencesIncludeBuffer (buffer: TextBuffer) {
-    let bufferPath = buffer.getPath()
-    if (!bufferPath) return false
-    return this.uris.has(bufferPath)
+  referencesIncludeBuffer(buffer: TextBuffer) {
+    let bufferPath = buffer.getPath();
+    if (!bufferPath) return false;
+    return this.uris.has(bufferPath);
   }
 
   fontFamilyChanged(fontFamily: string) {
@@ -539,7 +539,7 @@ export default class ReferencesView {
     this.splitDirection = splitDirection;
   }
 
-  getMetadataForTarget (target: HTMLElement) {
+  getMetadataForTarget(target: HTMLElement) {
     if (!target.matches('[data-line-number][data-file-path]')) return null;
     let {
       filePath = '',
@@ -601,7 +601,7 @@ export default class ReferencesView {
     filePath: string,
     row: number,
     rangeSpec: string,
-    { pending = true }: { pending: boolean } = { pending: true }
+    { pending = true }: { pending: boolean; } = { pending: true }
   ) {
     // Find an existing editor in the workspace for this file or else create
     // one if needed.
@@ -619,7 +619,7 @@ export default class ReferencesView {
 
   revealReferenceInEditor(filePath: string, row: number, rangeSpec: string, editor: TextEditor) {
     let referencesForFilePath = this.filteredAndGroupedReferences.get(filePath);
-    if (!referencesForFilePath) return
+    if (!referencesForFilePath) return;
 
     let referencesForLineNumber = referencesForFilePath.filter(({ range }) => {
       return range.start.row == row;
@@ -762,7 +762,7 @@ export default class ReferencesView {
     let bundle = await this.manager.findReferencesForProjectAtPosition(
       this.editor,
       this.marker.getBufferRange().start
-    )
+    );
     if (!bundle || bundle.type === 'error') return;
 
     await this.update({
@@ -801,7 +801,7 @@ export default class ReferencesView {
 
     this.lastNavigationIndex = navigationIndex - 1;
 
-    let containerStyle =  {
+    let containerStyle = {
       position: 'relative',
       height: '100%',
       overflow: 'auto',

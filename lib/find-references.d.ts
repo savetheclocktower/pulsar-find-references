@@ -3,6 +3,9 @@ import { FindReferencesReturn } from 'atom-ide-base';
 
 export type FindReferencesProvider = {
   isEditorSupported: (editor: TextEditor) => boolean,
+  // TODO: Augment `findReferences` to support result streaming. Perhaps accept
+  // an optional `onResults` callback so that results can be handled as they
+  // trickle in instead of all at once when the search is complete.
   findReferences: (editor: TextEditor, point: Point) => Promise<FindReferencesReturn | null>
 };
 
